@@ -172,7 +172,7 @@ def run_flask():
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
 
 async def main():
-    bot_token = os.environ.get("6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U")
+    bot_token = "6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U"
     if not bot_token:
         logger.error("TELEGRAM_BOT_TOKEN environment variable not set.")
         return

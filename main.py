@@ -165,7 +165,7 @@ def webhook():
     return '', 200
 
 async def handle_message(update: dict):
-    # Here you can process the message and call the appropriate function based on the command
+    # Process the message and call the appropriate function based on the command
     pass  # Implement your message handling logic here
 
 def run_flask():

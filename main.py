@@ -1,11 +1,11 @@
 import logging
 import random
 import asyncio
+import os
+import threading
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
-import threading
-
 
 # Konfigurasi logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -37,7 +37,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
-    chat_id = update.message.chat_id
+    chat_id = update.message.chat.id
     logger.info(f"{user.username} is trying to join the game in chat {chat_id}")
 
     if chat_id not in games:
@@ -55,7 +55,7 @@ async def join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Anda sudah bergabung.")
 
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.message.chat_id
+    chat_id = update.message.chat.id
     logger.info(f"Starting game in chat {chat_id}")
 
     if chat_id not in games or len(games[chat_id]["players"]) < 3:
@@ -85,7 +85,7 @@ async def send_descriptions(context: ContextTypes.DEFAULT_TYPE) -> None:
     group_chat_id = chat_id
     logger.info(f"Sending descriptions for chat {chat_id}")
 
-    for player_id in players.keys():
+    for player_id in players:
         if player_id in games[chat_id]["descriptions"]:
             await context.bot.send_message(chat_id=group_chat_id, text=f"{players[player_id]['username']} mendeskripsikan: {games[chat_id]['descriptions'][player_id]}")
         else:
@@ -95,7 +95,7 @@ async def send_descriptions(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def describe_word(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
-    chat_id = update.message.chat_id
+    chat_id = update.message.chat.id
 
     if chat_id in games and user.id in games[chat_id]["players"]:
         description = ' '.join(context.args)
@@ -111,10 +111,7 @@ async def start_voting(chat_id, context: ContextTypes.DEFAULT_TYPE) -> None:
     players = games[chat_id]["players"]
     games[chat_id]["votes"] = {player_id: 0 for player_id in players.keys()}
 
-    keyboard = []
-    for player_id in players.keys():
-        keyboard.append([InlineKeyboardButton(players[player_id]["username"], callback_data=f'vote_{player_id}')])
-
+    keyboard = [[InlineKeyboardButton(players[player_id]["username"], callback_data=f'vote_{player_id}') for player_id in players.keys()]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await context.bot.send_message(chat_id=chat_id, text="Voting dimulai! Pilih siapa yang Anda curigai sebagai spy:", reply_markup=reply_markup)
 
@@ -160,7 +157,7 @@ def reset_game(chat_id):
 @app.route('/webhook', methods=['POST'])
 def webhook():
     update = request.get_json()
-    print(update)  # Log the received update for debugging
+    logger.info(f"Received update: {update}")  # Log the received update for debugging
     if "message" in update and "text" in update["message"]:
         handle_message(update)
     return '', 200
@@ -177,7 +174,7 @@ def main():
     dp.add_handler(CommandHandler("startgame", start_game))
     dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
     dp.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
-    
+
     # Jalankan bot di thread terpisah
     updater.start_polling()
 

@@ -156,7 +156,7 @@ def reset_game(chat_id):
 def webhook_handler(update: dict, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Pastikan untuk memproses update dengan cara yang benar
     if "message" in update and "text" in update["message"]:
-        await handle_message(update)  # Pastikan fungsi ini ada dan menangani pesan
+        handle_message(update)  # Pastikan fungsi ini ada dan menangani pesan
 
 @app.route('/webhook', methods=['POST'])
 def webhook():

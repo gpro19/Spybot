@@ -153,12 +153,16 @@ def reset_game(chat_id):
     if chat_id in games:
         del games[chat_id]
 
+def webhook_handler(update: dict, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Pastikan untuk memproses update dengan cara yang benar
+    if "message" in update and "text" in update["message"]:
+        await handle_message(update)  # Pastikan fungsi ini ada dan menangani pesan
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     update = request.get_json()
-    logger.info(f"Received update: {update}")  # Log the received update for debugging
-    if "message" in update and "text" in update["message"]:
-        handle_message(update)  # Ensure this function is defined to handle messages
+    logger.info(f"Received update: {update}")
+    asyncio.run(webhook_handler(update, None))  # Panggil handler dengan update
     return '', 200
 
 def run_flask():

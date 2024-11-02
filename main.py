@@ -2,6 +2,7 @@ import logging
 import random
 import os
 import threading
+import asyncio
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
@@ -157,16 +158,21 @@ def reset_game(chat_id):
 def webhook():
     update = request.get_json()
     logger.info(f"Received update: {update}")
-    
+
     if "message" in update and "text" in update["message"]:
-        # Handle the message
         asyncio.run(handle_message(update))
-    
+
     return '', 200
 
+async def handle_message(update: dict):
+    # Implement your message handling logic here
+    pass
+
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
 
 async def main():
-    bot_token = "6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U"
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk")
     if not bot_token:
         logger.error("TELEGRAM_BOT_TOKEN environment variable not set.")
         return
@@ -182,11 +188,8 @@ async def main():
     await application.initialize()
     
     # Mulai polling
-    await application.updater.start_polling()
+    await application.start_polling()
     await application.idle()
-
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
 
 if __name__ == '__main__':
     threading.Thread(target=run_flask).start()  # Start Flask app in a separate thread

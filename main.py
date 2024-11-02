@@ -172,7 +172,7 @@ def webhook():
     return 'ok'
 
 if __name__ == '__main__':
-    TOKEN = '6921935430:AAGmSrcmn7Jc5_egkDjqeLXVhHjkPUoXu-4'
+    TOKEN = '6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U'
 
     # Buat event loop dan jalankan bot
     loop = asyncio.get_event_loop()

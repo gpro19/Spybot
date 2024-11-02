@@ -31,6 +31,26 @@ word_pairs = {
 # Inisialisasi Flask
 app = Flask(__name__)
 
+# Fungsi untuk menjalankan Flask
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    update = request.get_json()
+    logger.info(f"Received update: {update}")
+
+    # Menangani pesan baru
+    if "message" in update and "text" in update["message"]:
+        asyncio.run(handle_message(update))
+
+    return '', 200
+
+async def handle_message(update: dict):
+    # Implementasikan logika penanganan pesan di sini
+    pass
+
+# Mengatur bot Telegram
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info("Received /start command")
     await update.message.reply_text("Selamat datang di permainan Spy! Gunakan /join untuk bergabung.")
@@ -93,20 +113,6 @@ async def send_descriptions(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await start_voting(chat_id, context)
 
-async def describe_word(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user = update.message.from_user
-    chat_id = update.message.chat.id
-
-    if chat_id in games and user.id in games[chat_id]["players"]:
-        description = ' '.join(context.args)
-        if description:
-            games[chat_id]["descriptions"][user.id] = description
-            await update.message.reply_text("Deskripsi Anda berhasil dikirim.")
-        else:
-            await update.message.reply_text("Silakan berikan deskripsi setelah perintah ini.")
-    else:
-        await update.message.reply_text("Anda belum bergabung dalam permainan.")
-
 async def start_voting(chat_id, context: ContextTypes.DEFAULT_TYPE) -> None:
     players = games[chat_id]["players"]
     games[chat_id]["votes"] = {player_id: 0 for player_id in players.keys()}
@@ -154,23 +160,6 @@ def reset_game(chat_id):
     if chat_id in games:
         del games[chat_id]
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    update = request.get_json()
-    logger.info(f"Received update: {update}")
-
-    if "message" in update and "text" in update["message"]:
-        asyncio.run(handle_message(update))
-
-    return '', 200
-
-async def handle_message(update: dict):
-    # Implement your message handling logic here
-    pass
-
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
-
 async def main():
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk")
     if not bot_token:
@@ -192,7 +181,9 @@ async def main():
     await application.run_polling()
 
 if __name__ == '__main__':
-    # Menggunakan threading untuk menghindari masalah event loop
-    loop = asyncio.get_event_loop()
-    loop.run_in_executor(None, run_flask)  # Start Flask app in a separate thread
-    loop.run_until_complete(main())  # Start the Telegram bot
+    # Menggunakan threading untuk menjalankan Flask
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
+    
+    # Menjalankan main async function untuk bot
+    asyncio.run(main())

@@ -50,7 +50,6 @@ async def handle_message(update: dict):
     # Implementasikan logika penanganan pesan di sini
     pass
 
-# Mengatur bot Telegram
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info("Received /start command")
     await update.message.reply_text("Selamat datang di permainan Spy! Gunakan /join untuk bergabung.")
@@ -112,6 +111,20 @@ async def send_descriptions(context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(chat_id=group_chat_id, text=f"{players[player_id]['username']} ketiduran.")
 
     await start_voting(chat_id, context)
+
+async def describe_word(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.message.from_user
+    chat_id = update.message.chat.id
+
+    if chat_id in games and user.id in games[chat_id]["players"]:
+        description = ' '.join(context.args)
+        if description:
+            games[chat_id]["descriptions"][user.id] = description
+            await update.message.reply_text("Deskripsi Anda berhasil dikirim.")
+        else:
+            await update.message.reply_text("Silakan berikan deskripsi setelah perintah ini.")
+    else:
+        await update.message.reply_text("Anda belum bergabung dalam permainan.")
 
 async def start_voting(chat_id, context: ContextTypes.DEFAULT_TYPE) -> None:
     players = games[chat_id]["players"]

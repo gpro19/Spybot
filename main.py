@@ -153,40 +153,41 @@ def reset_game(chat_id):
     if chat_id in games:
         del games[chat_id]
 
-def webhook_handler(update: dict, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Pastikan untuk memproses update dengan cara yang benar
-    if "message" in update and "text" in update["message"]:
-        handle_message(update)  # Pastikan fungsi ini ada dan menangani pesan
-
 @app.route('/webhook', methods=['POST'])
 def webhook():
     update = request.get_json()
     logger.info(f"Received update: {update}")
-    asyncio.run(webhook_handler(update, None))  # Panggil handler dengan update
+    
+    if "message" in update and "text" in update["message"]:
+        # Handle the message
+        asyncio.run(handle_message(update))
+    
     return '', 200
+
+async def handle_message(update: dict):
+    # Here you can process the message and call the appropriate function based on the command
+    pass  # Implement your message handling logic here
 
 def run_flask():
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
 
 async def main():
-    # Inisialisasi bot Telegram
     bot_token = os.environ.get("6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U")
     if not bot_token:
         logger.error("TELEGRAM_BOT_TOKEN environment variable not set.")
         return
 
-    app = ApplicationBuilder().token(bot_token).build()
+    application = ApplicationBuilder().token(bot_token).build()
     
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("join", join))
-    app.add_handler(CommandHandler("startgame", start_game))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
-    app.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("join", join))
+    application.add_handler(CommandHandler("startgame", start_game))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
+    application.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
 
-    # Jalankan bot
-    await app.initialize()
-    await app.start_polling()
-    await app.idle()
+    await application.initialize()
+    await application.start_polling()
+    await application.idle()
 
 if __name__ == '__main__':
     import asyncio

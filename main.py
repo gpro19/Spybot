@@ -1,6 +1,8 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, CallbackContext
+from telegram.ext import filters  # Mengimpor filters dari telegram.ext
+
 from flask import Flask, request
 import random
 import threading
@@ -162,7 +164,7 @@ def start_bot(token: str):
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("join", join))
     dispatcher.add_handler(CommandHandler("startgame", start_game))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, describe_word))
+    dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))  
     dispatcher.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
 
     # Mulai bot

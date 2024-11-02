@@ -2,7 +2,7 @@ import logging
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
-
+import random
 # Konfigurasi logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -173,9 +173,15 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
     application.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
 
-    # Jalankan bot dengan polling di thread terpisah
-    import threading
-    threading.Thread(target=application.run_polling).start()
+    # Jalankan bot dengan polling
+    import asyncio
+
+    async def main():
+        # Jalankan bot
+        await application.run_polling()
 
     # Jalankan aplikasi Flask
     app.run(host='0.0.0.0', port=8000)  # Ganti port sesuai kebutuhan
+
+    # Mulai event loop asyncio
+    asyncio.run(main())

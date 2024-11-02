@@ -188,9 +188,11 @@ async def main():
 
     await application.initialize()
     
-    # Mulai polling dengan menggunakan application.run_polling()
+    # Mulai polling
     await application.run_polling()
 
 if __name__ == '__main__':
-    threading.Thread(target=run_flask).start()  # Start Flask app in a separate thread
-    asyncio.run(main())  # Start the Telegram bot
+    # Menggunakan threading untuk menghindari masalah event loop
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, run_flask)  # Start Flask app in a separate thread
+    loop.run_until_complete(main())  # Start the Telegram bot

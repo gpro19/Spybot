@@ -1,11 +1,10 @@
 import logging
 import random
-import asyncio
 import os
 import threading
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
 # Konfigurasi logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -165,22 +164,22 @@ def webhook():
 def run_flask():
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
 
-def main():
+async def main():
     # Inisialisasi bot Telegram
-    updater = Updater("6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U")
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("join", join))
-    dp.add_handler(CommandHandler("startgame", start_game))
-    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
-    dp.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
+    app = ApplicationBuilder().token("6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U").build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("join", join))
+    app.add_handler(CommandHandler("startgame", start_game))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
+    app.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
 
-    # Jalankan bot di thread terpisah
-    updater.start_polling()
-
-    # Jalankan Flask app di thread terpisah
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.start()
+    # Jalankan bot
+    await app.initialize()
+    await app.start_polling()
+    await app.idle()
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    threading.Thread(target=run_flask).start()  # Start Flask app in a separate thread
+    asyncio.run(main())  # Start the Telegram bot

@@ -168,15 +168,15 @@ def webhook():
     update = request.get_json()
     if update:
         # Proses update dengan dispatcher
-        application = Application.builder().token('6921935430:AAGmSrcmn7Jc5_egkDjqeLXVhHjkPUoXu-4').build()  # Pastikan untuk menggunakan token yang benar
         application.dispatcher.process_update(Update.de_json(update))
     return 'ok'
 
 if __name__ == '__main__':
     TOKEN = '6921935430:AAGmSrcmn7Jc5_egkDjqeLXVhHjkPUoXu-4'
-    
-    # Jalankan bot dengan asyncio.run
-    asyncio.run(start_bot(TOKEN))
+
+    # Buat event loop dan jalankan bot
+    loop = asyncio.get_event_loop()
+    loop.create_task(start_bot(TOKEN))
 
     # Jalankan aplikasi Flask
-    app.run(host='0.0.0.0', port=5000)  # Perbaiki untuk mendengarkan di semua antarmuka
+    app.run(host='0.0.0.0', port=8000)  # Perbaiki untuk mendengarkan di semua antarmuka

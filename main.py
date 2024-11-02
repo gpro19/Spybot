@@ -188,9 +188,8 @@ async def main():
 
     await application.initialize()
     
-    # Mulai polling
-    await application.start_polling()
-    await application.idle()
+    # Mulai polling dengan menggunakan application.run_polling()
+    await application.run_polling()
 
 if __name__ == '__main__':
     threading.Thread(target=run_flask).start()  # Start Flask app in a separate thread

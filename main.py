@@ -164,12 +164,6 @@ def webhook():
     
     return '', 200
 
-async def handle_message(update: dict):
-    # Process the message and call the appropriate function based on the command
-    pass  # Implement your message handling logic here
-
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
 
 async def main():
     bot_token = "6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U"
@@ -186,10 +180,14 @@ async def main():
     application.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
 
     await application.initialize()
-    await application.start_polling()
+    
+    # Mulai polling
+    await application.updater.start_polling()
     await application.idle()
 
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
+
 if __name__ == '__main__':
-    import asyncio
     threading.Thread(target=run_flask).start()  # Start Flask app in a separate thread
     asyncio.run(main())  # Start the Telegram bot

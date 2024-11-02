@@ -159,7 +159,7 @@ def reset_game(chat_id):
 def webhook():
     update = request.get_json()
     logger.info("Webhook received: %s", update)  # Logging for received update
-    if update:
+    if update and 'message' in update:
         asyncio.run(application.dispatcher.process_update(Update.de_json(update)))
     return 'ok'
 
@@ -176,8 +176,5 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
     application.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
 
-    # Jalankan aplikasi Flask dan bot secara bersamaan
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(application.run_polling())
-
+    # Jalankan aplikasi Flask
     app.run(host='0.0.0.0', port=8000)  # Ganti port sesuai kebutuhan

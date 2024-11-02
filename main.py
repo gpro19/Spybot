@@ -158,7 +158,7 @@ def webhook():
     update = request.get_json()
     logger.info(f"Received update: {update}")  # Log the received update for debugging
     if "message" in update and "text" in update["message"]:
-        handle_message(update)
+        handle_message(update)  # Ensure this function is defined to handle messages
     return '', 200
 
 def run_flask():
@@ -166,7 +166,12 @@ def run_flask():
 
 async def main():
     # Inisialisasi bot Telegram
-    app = ApplicationBuilder().token("6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U").build()
+    bot_token = os.environ.get("6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U")
+    if not bot_token:
+        logger.error("TELEGRAM_BOT_TOKEN environment variable not set.")
+        return
+
+    app = ApplicationBuilder().token(bot_token).build()
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("join", join))

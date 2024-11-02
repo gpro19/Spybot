@@ -1,10 +1,7 @@
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes
-from telegram.ext import filters  # Mengimpor filters dari telegram.ext
 import random
-import asyncio
-from flask import Flask, request
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
 # Konfigurasi logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -27,15 +24,14 @@ word_pairs = {
     "network": "networks"
 }
 
-# Inisialisasi Flask
-app = Flask(__name__)
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.info("Received /start command")
     await update.message.reply_text("Selamat datang di permainan Spy! Gunakan /join untuk bergabung.")
 
 async def join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
     chat_id = update.message.chat_id
+    logger.info(f"{user.username} is trying to join the game in chat {chat_id}")
 
     if chat_id not in games:
         games[chat_id] = {
@@ -53,6 +49,8 @@ async def join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.message.chat_id
+    logger.info(f"Starting game in chat {chat_id}")
+
     if chat_id not in games or len(games[chat_id]["players"]) < 3:
         await update.message.reply_text("Minimal 3 pemain diperlukan untuk memulai permainan.")
         return
@@ -78,6 +76,7 @@ async def send_descriptions(context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = context.job.context
     players = games[chat_id]["players"]
     group_chat_id = chat_id
+    logger.info(f"Sending descriptions for chat {chat_id}")
 
     for player_id in players.keys():
         if player_id in games[chat_id]["descriptions"]:
@@ -108,14 +107,14 @@ async def start_voting(chat_id, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = []
     for player_id in players.keys():
         keyboard.append([InlineKeyboardButton(players[player_id]["username"], callback_data=f'vote_{player_id}')])
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     await context.bot.send_message(chat_id=chat_id, text="Voting dimulai! Pilih siapa yang Anda curigai sebagai spy:", reply_markup=reply_markup)
 
 async def vote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     user_id = query.from_user.id
-    chat_id = query.message.chat_id
+    chat_id = query.message.chat.id
     selected_player_id = query.data.split('_')[1]
 
     if user_id in games[chat_id]["players"]:
@@ -140,7 +139,7 @@ async def end_voting(chat_id, context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(chat_id=chat_id, text="Spy menang!")
             reset_game(chat_id)
             return
-        
+
         await start_game(context.job.context, context)
 
     else:
@@ -151,9 +150,12 @@ def reset_game(chat_id):
     if chat_id in games:
         del games[chat_id]
 
-async def start_bot(token: str):
-    application = Application.builder().token(token).build()
-    
+if __name__ == '__main__':
+    TOKEN = '6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U'  # Ganti dengan token bot Anda
+
+    # Buat dan jalankan bot
+    application = Application.builder().token(TOKEN).build()
+
     # Tambahkan handler
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("join", join))
@@ -161,22 +163,5 @@ async def start_bot(token: str):
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
     application.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
 
-    await application.run_polling()
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    update = request.get_json()
-    if update:
-        # Proses update dengan dispatcher
-        application.dispatcher.process_update(Update.de_json(update))
-    return 'ok'
-
-if __name__ == '__main__':
-    TOKEN = '6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U'
-
-    # Buat event loop dan jalankan bot
-    loop = asyncio.get_event_loop()
-    loop.create_task(start_bot(TOKEN))
-
-    # Jalankan aplikasi Flask
-    app.run(host='0.0.0.0', port=8000)  # Perbaiki untuk mendengarkan di semua antarmuka
+    # Mulai polling
+    application.run_polling()

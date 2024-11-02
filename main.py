@@ -179,6 +179,7 @@ async def main():
 
     application = ApplicationBuilder().token(bot_token).build()
     
+    # Menambahkan handler
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("join", join))
     application.add_handler(CommandHandler("startgame", start_game))

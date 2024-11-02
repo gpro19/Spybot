@@ -3,7 +3,9 @@ import random
 import asyncio
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+import threading
+
 
 # Konfigurasi logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -158,23 +160,30 @@ def reset_game(chat_id):
 @app.route('/webhook', methods=['POST'])
 def webhook():
     update = request.get_json()
-    logger.info("Webhook received: %s", update)  # Logging for received update
-    if update and 'message' in update:
-        asyncio.run(application.dispatcher.process_update(Update.de_json(update)))
-    return 'ok'
+    print(update)  # Log the received update for debugging
+    if "message" in update and "text" in update["message"]:
+        handle_message(update)
+    return '', 200
+
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
+
+def main():
+    # Inisialisasi bot Telegram
+    updater = Updater("6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U")
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("join", join))
+    dp.add_handler(CommandHandler("startgame", start_game))
+    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
+    dp.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
+    
+    # Jalankan bot di thread terpisah
+    updater.start_polling()
+
+    # Jalankan Flask app di thread terpisah
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
 
 if __name__ == '__main__':
-    TOKEN = '6921935430:AAFtUt-z18wrEj9iBo7GwVssgVC2CGRRO5U'  # Ganti dengan token bot Anda
-
-    # Buat dan jalankan bot
-    application = Application.builder().token(TOKEN).build()
-
-    # Tambahkan handler
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("join", join))
-    application.add_handler(CommandHandler("startgame", start_game))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, describe_word))
-    application.add_handler(CallbackQueryHandler(vote, pattern='^vote_'))
-
-    # Jalankan aplikasi Flask
-    app.run(host='0.0.0.0', port=8000)  # Ganti port sesuai kebutuhan
+    main()

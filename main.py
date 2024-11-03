@@ -5,10 +5,10 @@ import threading
 import time
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters
 
 # Konfigurasi logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(name__) - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Status permainan untuk setiap grup
@@ -65,11 +65,14 @@ def join(update: Update, context: CallbackContext) -> None:
             "players": {},
             "spy_count": 0,
             "descriptions": {},
-            "votes": {}
+            "votes": {},
+            "player_descriptions": {},  # Menyimpan deskripsi dari pemain
+            "has_described": {}  # Menyimpan status deskripsi pemain
         }
 
     if user.id not in games[chat_id]["players"]:
         games[chat_id]["players"][user.id] = {"username": username, "role": None}
+        games[chat_id]["has_described"][user.id] = False  # Set status deskripsi awal untuk pemain
         update.message.reply_text(f"{username} telah bergabung! Ketik /startgame untuk memulai permainan.")
     else:
         update.message.reply_text("Anda sudah bergabung.")
@@ -100,33 +103,36 @@ def start_game(update: Update, context: CallbackContext) -> None:
             games[chat_id]["players"][player_id]["role"] = "civilian"
             context.bot.send_message(chat_id=player_id, text="Anda adalah WARGA BIASA!")
 
-    # Mengirim kata kepada pemain di chat privat
+    # Mengirim kata kepada pemain
     words = random.sample(list(word_pairs.keys()), len(players))
     for player_id, word in zip(players.keys(), words):
         games[chat_id]["descriptions"][player_id] = word
         context.bot.send_message(chat_id=player_id, text=f"Anda mendapatkan kata: {word}")
 
-    update.message.reply_text("Permainan dimulai! Setiap pemain memiliki 40 detik untuk menggambarkan kata mereka.")
+    update.message.reply_text("Permainan dimulai! Setiap pemain memiliki 40 detik untuk mendiskripsikan kata mereka.")
 
     # Memulai fase deskripsi
     threading.Thread(target=description_phase, args=(chat_id, context)).start()
 
 def description_phase(chat_id, context):
     time.sleep(40)  # Tunggu selama 40 detik untuk deskripsi
-    # Mengirimkan pesan ke grup tentang hasil deskripsi
-    for player_id in games[chat_id]["players"]:
-        word = games[chat_id]["descriptions"][player_id]
-        context.bot.send_message(chat_id=chat_id, text=f"{games[chat_id]['players'][player_id]['username']} mendeskripsikan kata: {word}")
 
-    # Mengirim pesan untuk yang tidak mendeskripsikan
+    # Mengumpulkan deskripsi dan memeriksa yang tidak mendeskripsikan
+    descriptions = []
     for player_id in games[chat_id]["players"]:
-        if games[chat_id]["players"][player_id]["role"] == "civilian":
+        username = games[chat_id]['players'][player_id]['username']
+        word = games[chat_id]["descriptions"][player_id]
+        if games[chat_id]["has_described"].get(player_id, False):
+            descriptions.append(f"{username} mendeskripsikan: {word}")
+        else:
             context.bot.send_message(chat_id=player_id, text="Anda sedang tidur, jangan diganggu.")
 
-    context.bot.send_message(chat_id=chat_id, text="Waktu deskripsi telah habis! Sekarang waktunya untuk diskusi selama 60 detik.")
-    
-    # Memulai fase diskusi
-    time.sleep(60)  # Tunggu selama 60 detik untuk diskusi
+    # Kirim semua deskripsi ke grup
+    context.bot.send_message(chat_id=chat_id, text="\n".join(descriptions))
+
+    context.bot.send_message(chat_id=chat_id, text="Waktu deskripsi telah habis! Sekarang waktunya untuk voting.")
+
+    # Memulai fase voting
     voting_phase(chat_id, context)
 
 def voting_phase(chat_id, context):
@@ -209,6 +215,20 @@ def kill_game(update: Update, context: CallbackContext) -> None:
     else:
         update.message.reply_text("Tidak ada permainan yang sedang berlangsung.")
 
+# Menambahkan handler untuk pesan di chat privat
+def handle_private_messages(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat.id
+
+    # Pastikan pengguna adalah pemain dalam permainan
+    for game_chat_id, game in games.items():
+        if user_id in game["players"]:
+            # Menandai bahwa pemain telah mendeskripsikan
+            game["has_described"][user_id] = True
+            # Kirim pesan deskripsi ke grup
+            context.bot.send_message(chat_id=game_chat_id, text=f"{game['players'][user_id]['username']} mendeskripsikan: {update.message.text}")
+            break
+
 # Menambahkan handler perintah
 def main():
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk")  # Ganti dengan token bot Anda
@@ -221,6 +241,7 @@ def main():
     dp.add_handler(CommandHandler("startgame", start_game))
     dp.add_handler(CommandHandler("killgame", kill_game))  # Menambahkan handler untuk /killgame
     dp.add_handler(CallbackQueryHandler(button))  # Menggunakan CallbackQueryHandler untuk menangani tombol
+    dp.add_handler(MessageHandler(Filters.text & Filters.private, handle_private_messages))  # Menambahkan handler untuk pesan di chat privat
     
     # Mulai polling
     updater.start_polling()

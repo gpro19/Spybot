@@ -57,7 +57,6 @@ def join(update: Update, context: CallbackContext) -> None:
     user = update.message.from_user
     chat_id = update.message.chat.id
 
-  
     username = user.username if user.username else user.first_name
     logger.info(f"{username} is trying to join the game in chat {chat_id}")
 
@@ -74,7 +73,6 @@ def join(update: Update, context: CallbackContext) -> None:
         update.message.reply_text(f"{username} telah bergabung! Ketik /startgame untuk memulai permainan.")
     else:
         update.message.reply_text("Anda sudah bergabung.")
-
 
 def start_game(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
@@ -102,7 +100,7 @@ def start_game(update: Update, context: CallbackContext) -> None:
             games[chat_id]["players"][player_id]["role"] = "civilian"
             context.bot.send_message(chat_id=player_id, text="Anda adalah WARGA BIASA!")
 
-    # Mengirim kata kepada pemain
+    # Mengirim kata kepada pemain di chat privat
     words = random.sample(list(word_pairs.keys()), len(players))
     for player_id, word in zip(players.keys(), words):
         games[chat_id]["descriptions"][player_id] = word
@@ -115,11 +113,21 @@ def start_game(update: Update, context: CallbackContext) -> None:
 
 def description_phase(chat_id, context):
     time.sleep(40)  # Tunggu selama 40 detik untuk deskripsi
-    context.bot.send_message(chat_id=chat_id, text="Waktu deskripsi telah habis! Sekarang waktunya untuk voting.")
+    # Mengirimkan pesan ke grup tentang hasil deskripsi
+    for player_id in games[chat_id]["players"]:
+        word = games[chat_id]["descriptions"][player_id]
+        context.bot.send_message(chat_id=chat_id, text=f"{games[chat_id]['players'][player_id]['username']} mendeskripsikan kata: {word}")
+
+    # Mengirim pesan untuk yang tidak mendeskripsikan
+    for player_id in games[chat_id]["players"]:
+        if games[chat_id]["players"][player_id]["role"] == "civilian":
+            context.bot.send_message(chat_id=player_id, text="Anda sedang tidur, jangan diganggu.")
+
+    context.bot.send_message(chat_id=chat_id, text="Waktu deskripsi telah habis! Sekarang waktunya untuk diskusi selama 60 detik.")
     
-    # Memulai fase voting
+    # Memulai fase diskusi
+    time.sleep(60)  # Tunggu selama 60 detik untuk diskusi
     voting_phase(chat_id, context)
-    
 
 def voting_phase(chat_id, context):
     players = games[chat_id]["players"]
@@ -132,7 +140,6 @@ def voting_phase(chat_id, context):
 
     reply_markup = InlineKeyboardMarkup(build_menu(keyboard, n_cols=1))
     context.bot.send_message(chat_id=chat_id, text="Silakan pilih pemain yang ingin Anda eliminasi:", reply_markup=reply_markup)
-
 
 def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
     menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]

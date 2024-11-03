@@ -56,7 +56,10 @@ def start(update: Update, context: CallbackContext) -> None:
 def join(update: Update, context: CallbackContext) -> None:
     user = update.message.from_user
     chat_id = update.message.chat.id
-    logger.info(f"{user.username} is trying to join the game in chat {chat_id}")
+
+  
+    username = user.username if user.username else user.first_name
+    logger.info(f"{username} is trying to join the game in chat {chat_id}")
 
     if chat_id not in games:
         games[chat_id] = {
@@ -67,10 +70,11 @@ def join(update: Update, context: CallbackContext) -> None:
         }
 
     if user.id not in games[chat_id]["players"]:
-        games[chat_id]["players"][user.id] = {"username": user.username, "role": None}
-        update.message.reply_text(f"{user.username} telah bergabung! Ketik /startgame untuk memulai permainan.")
+        games[chat_id]["players"][user.id] = {"username": username, "role": None}
+        update.message.reply_text(f"{username} telah bergabung! Ketik /startgame untuk memulai permainan.")
     else:
         update.message.reply_text("Anda sudah bergabung.")
+
 
 def start_game(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
@@ -115,17 +119,20 @@ def description_phase(chat_id, context):
     
     # Memulai fase voting
     voting_phase(chat_id, context)
+    
 
 def voting_phase(chat_id, context):
     players = games[chat_id]["players"]
     keyboard = []
     
     for player_id, info in players.items():
-        button = InlineKeyboardButton(info["username"], callback_data=f"vote_{player_id}")
+        # Memastikan text ada dan tidak kosong
+        button = InlineKeyboardButton(text=info["username"], callback_data=f"vote_{player_id}")  
         keyboard.append(button)
 
     reply_markup = InlineKeyboardMarkup(build_menu(keyboard, n_cols=1))
     context.bot.send_message(chat_id=chat_id, text="Silakan pilih pemain yang ingin Anda eliminasi:", reply_markup=reply_markup)
+
 
 def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
     menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]

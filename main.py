@@ -199,4 +199,5 @@ if __name__ == '__main__':
     flask_thread.start()
     
     # Menjalankan main async function untuk bot
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

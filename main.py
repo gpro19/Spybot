@@ -80,7 +80,8 @@ def start_game(update: Update, context: CallbackContext) -> None:
         update.message.reply_text("Tidak cukup pemain untuk memulai permainan.")
         return
 
-    if "spy_count" in games[chat_id]:  # Cek apakah permainan sudah dimulai
+    # Cek apakah permainan sudah dimulai
+    if "spy_count" in games[chat_id] and games[chat_id]["spy_count"] > 0:
         update.message.reply_text("Permainan sudah dimulai!")
         return
 

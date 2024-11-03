@@ -4,7 +4,7 @@ import os
 import threading
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, Filters, CallbackContext
 
 # Konfigurasi logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -192,7 +192,7 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("join", join))
     dp.add_handler(CommandHandler("startgame", start_game))
-    dp.add_handler(MessageHandler(Filters.callback_query, button))
+    dp.add_handler(CallbackQueryHandler(button))  # Menggunakan CallbackQueryHandler untuk menangani tombol
     
     # Mulai polling
     updater.start_polling()

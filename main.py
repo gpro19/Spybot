@@ -4,7 +4,7 @@ import os
 import threading
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
 
 # Konfigurasi logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -91,8 +91,10 @@ def start_game(update: Update, context: CallbackContext) -> None:
     for player_id in players:
         if player_id in spy_players:
             games[chat_id]["players"][player_id]["role"] = "spy"
+            context.bot.send_message(chat_id=player_id, text="Anda adalah SPY!")
         else:
             games[chat_id]["players"][player_id]["role"] = "civilian"
+            context.bot.send_message(chat_id=player_id, text="Anda adalah WARGA BIASA!")
 
     # Mengirim kata kepada pemain
     words = random.sample(list(word_pairs.keys()), len(players))
@@ -181,7 +183,16 @@ def reset_game(chat_id):
     # Mengatur ulang status permainan
     if chat_id in games:
         del games[chat_id]
-    
+
+# Tambahkan perintah untuk menghentikan permainan
+def kill_game(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat.id
+    if chat_id in games:
+        del games[chat_id]
+        update.message.reply_text("Permainan telah dihentikan!")
+    else:
+        update.message.reply_text("Tidak ada permainan yang sedang berlangsung.")
+
 # Menambahkan handler perintah
 def main():
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk")  # Ganti dengan token bot Anda
@@ -192,6 +203,7 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("join", join))
     dp.add_handler(CommandHandler("startgame", start_game))
+    dp.add_handler(CommandHandler("killgame", kill_game))  # Menambahkan handler untuk /killgame
     dp.add_handler(CallbackQueryHandler(button))  # Menggunakan CallbackQueryHandler untuk menangani tombol
     
     # Mulai polling

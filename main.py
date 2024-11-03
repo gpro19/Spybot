@@ -42,7 +42,7 @@ def webhook():
 
     # Menangani pesan baru
     if "message" in update and "text" in update["message"]:
-        asyncio.run(handle_message(update))
+        asyncio.create_task(handle_message(update))
 
     return '', 200
 

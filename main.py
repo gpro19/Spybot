@@ -159,7 +159,9 @@ def voting_phase(chat_id, context):
     keyboard = []
     
     for player_id, info in players.items():
-        button = InlineKeyboardButton(text=info["username"], callback_data=f"vote_{player_id}")  
+        # Cek apakah pemain sudah memberikan suara
+        button_text = f"{info['username']} (Voted)" if player_id in games[chat_id].get("votes", {}) else info["username"]
+        button = InlineKeyboardButton(text=button_text, callback_data=f"vote_{player_id}", callback_data=f"vote_{player_id}")  
         keyboard.append(button)
 
     reply_markup = InlineKeyboardMarkup(build_menu(keyboard, n_cols=1))
@@ -168,6 +170,44 @@ def voting_phase(chat_id, context):
     # Menunggu 20 detik untuk voting
     time.sleep(VOTING_TIME)  # Tunggu selama 20 detik untuk voting
     determine_votes(chat_id, context)
+
+def button(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()  # Menjawab callback query
+
+    user_id = query.from_user.id
+    chat_id = query.message.chat.id
+    selected_player_id = query.data.split("_")[1]
+
+    if chat_id in games and user_id in games[chat_id]["players"]:
+        if selected_player_id in games[chat_id]["players"]:  # Pastikan selected_player_id ada
+            if "votes" not in games[chat_id]:
+                games[chat_id]["votes"] = {}
+
+            # Simpan suara pemain
+            games[chat_id]["votes"][user_id] = selected_player_id
+            
+            # Memperbarui teks tombol untuk menandakan bahwa pemain sudah memberikan suara
+            buttons = []
+            for player_id, info in games[chat_id]["players"].items():
+                button_text = f"{info['username']} (Voted)" if player_id in games[chat_id]["votes"] else info["username"]
+                buttons.append(InlineKeyboardButton(text=button_text, callback_data=f"vote_{player_id}"))
+
+            reply_markup = InlineKeyboardMarkup(build_menu(buttons, n_cols=1))
+            context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=query.message.message_id, reply_markup=reply_markup)
+
+            # Memberikan umpan balik kepada grup
+            context.bot.send_message(chat_id=chat_id, text=f"{games[chat_id]['players'][user_id]['username']} telah memilih {games[chat_id]['players'][selected_player_id]['username']}.")
+
+            # Jika semua pemain telah memberikan suara, proses voting
+            if len(games[chat_id]["votes"]) == len(games[chat_id]["players"]):
+                context.bot.send_message(chat_id=chat_id, text="Voting selesai!")
+                determine_elimination(chat_id, context)
+        else:
+            logger.error(f"Selected player ID {selected_player_id} tidak ditemukan dalam daftar pemain.")
+    else:
+        logger.error(f"Chat ID {chat_id} atau User ID {user_id} tidak ditemukan dalam permainan.")
+        
 
 def determine_votes(chat_id, context):
     if "votes" not in games[chat_id]:
@@ -263,28 +303,6 @@ def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
         menu.append(footer_buttons)
     return menu
     
-def button(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()  # Menjawab callback query
-
-    user_id = query.from_user.id
-    chat_id = query.message.chat.id
-    selected_player_id = query.data.split("_")[1]
-
-    if chat_id in games and user_id in games[chat_id]["players"]:
-        if "votes" not in games[chat_id]:
-            games[chat_id]["votes"] = {}
-
-        # Simpan suara pemain
-        games[chat_id]["votes"][user_id] = selected_player_id
-        
-        # Memberikan umpan balik kepada grup
-        context.bot.send_message(chat_id=chat_id, text=f"{games[chat_id]['players'][user_id]['username']} telah memilih {games[chat_id]['players'][selected_player_id]['username']}.")
-
-        # Jika semua pemain telah memberikan suara, proses voting
-        if len(games[chat_id]["votes"]) == len(games[chat_id]["players"]):
-            context.bot.send_message(chat_id=chat_id, text="Voting selesai!")
-            determine_elimination(chat_id, context)
 
 # Menambahkan handler perintah
 def main():

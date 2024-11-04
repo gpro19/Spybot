@@ -267,7 +267,7 @@ def main():
     dp.add_handler(CommandHandler("startgame", start_game))
     dp.add_handler(CommandHandler("killgame", kill_game))  # Menambahkan handler untuk /killgame
     dp.add_handler(CallbackQueryHandler(button))  # Menggunakan CallbackQueryHandler untuk menangani tombol
-    dp.add_handler(MessageHandler(Filters.text & Filters.private, handle_private_messages))  # Menambahkan handler untuk pesan di chat privat
+    dp.add_handler(MessageHandler(Filters.text & Filters.chat_type.private, handle_private_messages))  # Menambahkan handler untuk pesan di chat privat
     
     # Mulai polling
     updater.start_polling()

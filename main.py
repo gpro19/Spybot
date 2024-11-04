@@ -209,7 +209,6 @@ def button(update: Update, context: CallbackContext):
         logger.error(f"Chat ID {chat_id} atau User ID {user_id} tidak ditemukan dalam permainan.")
 
 
-
 def determine_votes(chat_id, context):
     if "votes" not in games[chat_id]:
         games[chat_id]["votes"] = {}
@@ -217,6 +216,7 @@ def determine_votes(chat_id, context):
     # Proses voting
     context.bot.send_message(chat_id=chat_id, text="Voting selesai!")
     determine_elimination(chat_id, context)
+
 
 def determine_elimination(chat_id, context):
     vote_counts = {}

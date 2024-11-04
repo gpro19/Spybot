@@ -8,7 +8,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters
 
 # Konfigurasi logging
-logging.basicConfig(format='%(asctime)s - %(name__) - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Status permainan untuk setiap grup
@@ -66,7 +66,6 @@ def join(update: Update, context: CallbackContext) -> None:
             "spy_count": 0,
             "descriptions": {},
             "votes": {},
-            "player_descriptions": {},  # Menyimpan deskripsi dari pemain
             "has_described": {}  # Menyimpan status deskripsi pemain
         }
 
@@ -117,20 +116,29 @@ def start_game(update: Update, context: CallbackContext) -> None:
 def description_phase(chat_id, context):
     time.sleep(40)  # Tunggu selama 40 detik untuk deskripsi
 
-    # Mengumpulkan deskripsi dan memeriksa yang tidak mendeskripsikan
+    # Mengumpulkan deskripsi
     descriptions = []
     for player_id in games[chat_id]["players"]:
         username = games[chat_id]['players'][player_id]['username']
         word = games[chat_id]["descriptions"][player_id]
+        
+        # Kirim pesan ke grup jika deskripsi sudah ada
         if games[chat_id]["has_described"].get(player_id, False):
             descriptions.append(f"{username} mendeskripsikan: {word}")
         else:
+            # Jika pemain tidak mendeskripsikan, kirim pesan
             context.bot.send_message(chat_id=player_id, text="Anda sedang tidur, jangan diganggu.")
 
     # Kirim semua deskripsi ke grup
-    context.bot.send_message(chat_id=chat_id, text="\n".join(descriptions))
+    if descriptions:
+        context.bot.send_message(chat_id=chat_id, text="\n".join(descriptions))
+    else:
+        context.bot.send_message(chat_id=chat_id, text="Tidak ada deskripsi yang dikirim.")
 
-    context.bot.send_message(chat_id=chat_id, text="Waktu deskripsi telah habis! Sekarang waktunya untuk voting.")
+    context.bot.send_message(chat_id=chat_id, text="Waktu deskripsi telah habis! Sekarang waktunya untuk diskusi selama 60 detik.")
+
+    # Memulai fase diskusi
+    time.sleep(60)  # Tunggu selama 60 detik untuk diskusi
 
     # Memulai fase voting
     voting_phase(chat_id, context)
@@ -147,32 +155,17 @@ def voting_phase(chat_id, context):
     reply_markup = InlineKeyboardMarkup(build_menu(keyboard, n_cols=1))
     context.bot.send_message(chat_id=chat_id, text="Silakan pilih pemain yang ingin Anda eliminasi:", reply_markup=reply_markup)
 
-def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
-    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
-    if header_buttons:
-        menu.insert(0, header_buttons)
-    if footer_buttons:
-        menu.append(footer_buttons)
-    return menu
+    # Menunggu 20 detik untuk voting
+    time.sleep(20)  # Tunggu selama 20 detik untuk voting
+    determine_votes(chat_id, context)
 
-def button(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()
-    
-    user_id = query.from_user.id
-    chat_id = query.message.chat.id
-    selected_player_id = query.data.split("_")[1]
+def determine_votes(chat_id, context):
+    if "votes" not in games[chat_id]:
+        games[chat_id]["votes"] = {}
 
-    if chat_id in games and user_id in games[chat_id]["players"]:
-        if "votes" not in games[chat_id]:
-            games[chat_id]["votes"] = {}
-        
-        games[chat_id]["votes"][user_id] = selected_player_id
-        query.edit_message_text(text=f"Anda telah memilih {games[chat_id]['players'][selected_player_id]['username']}.")
-
-        if len(games[chat_id]["votes"]) == len(games[chat_id]["players"]):
-            context.bot.send_message(chat_id=chat_id, text="Voting selesai!")
-            determine_elimination(chat_id, context)
+    # Proses voting
+    context.bot.send_message(chat_id=chat_id, text="Voting selesai!")
+    determine_elimination(chat_id, context)
 
 def determine_elimination(chat_id, context):
     vote_counts = {}
@@ -183,8 +176,11 @@ def determine_elimination(chat_id, context):
             vote_counts[vote] = 1
 
     # Menemukan pemain dengan suara terbanyak
-    eliminated = max(vote_counts, key=vote_counts.get)
-    context.bot.send_message(chat_id=chat_id, text=f"Pemain {games[chat_id]['players'][eliminated]['username']} telah dieliminasi.")
+    if vote_counts:
+        eliminated = max(vote_counts, key=vote_counts.get)
+        context.bot.send_message(chat_id=chat_id, text=f"Pemain {games[chat_id]['players'][eliminated]['username']} telah dieliminasi.")
+    else:
+        context.bot.send_message(chat_id=chat_id, text="Tidak ada suara yang dihitung.")
 
     # Memeriksa kondisi akhir permainan
     check_game_end(chat_id, context)
@@ -225,8 +221,6 @@ def handle_private_messages(update: Update, context: CallbackContext):
         if user_id in game["players"]:
             # Menandai bahwa pemain telah mendeskripsikan
             game["has_described"][user_id] = True
-            # Kirim pesan deskripsi ke grup
-            context.bot.send_message(chat_id=game_chat_id, text=f"{game['players'][user_id]['username']} mendeskripsikan: {update.message.text}")
             break
 
 # Menambahkan handler perintah

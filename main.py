@@ -66,7 +66,11 @@ def join(update: Update, context: CallbackContext) -> None:
             "spy_count": 0,
             "descriptions": {},
             "votes": {},
-            "has_described": {}  # Menyimpan status deskripsi pemain
+            "has_described": {},  # Menyimpan status deskripsi pemain
+            "round": 1,  # Menyimpan putaran saat ini
+            "scores": {},  # Menyimpan skor pemain
+            "current_words": {},  # Menyimpan kata untuk putaran berikutnya
+            "current_roles": {}  # Menyimpan peran untuk putaran berikutnya
         }
 
     if user.id not in games[chat_id]["players"]:
@@ -94,6 +98,7 @@ def start_game(update: Update, context: CallbackContext) -> None:
     games[chat_id]["spy_count"] = spy_count
     spy_players = random.sample(list(players.keys()), spy_count)
 
+    # Menyimpan peran untuk setiap pemain
     for player_id in players:
         if player_id in spy_players:
             games[chat_id]["players"][player_id]["role"] = "spy"
@@ -108,7 +113,11 @@ def start_game(update: Update, context: CallbackContext) -> None:
         games[chat_id]["descriptions"][player_id] = word
         context.bot.send_message(chat_id=player_id, text=f"Anda mendapatkan kata: {word}")
 
-    update.message.reply_text("Permainan dimulai! Setiap pemain memiliki 40 detik untuk mendiskripsikan kata mereka.")
+    # Simpan kata dan peran untuk putaran berikutnya
+    games[chat_id]["current_words"] = games[chat_id]["descriptions"]
+    games[chat_id]["current_roles"] = {player_id: info["role"] for player_id, info in games[chat_id]["players"].items()}
+
+    update.message.reply_text(f"Putaran deskripsi ke-{games[chat_id]['round']} dimulai! Setiap pemain memiliki 40 detik untuk mendiskripsikan kata mereka.")
 
     # Memulai fase deskripsi
     threading.Thread(target=description_phase, args=(chat_id, context)).start()
@@ -130,11 +139,7 @@ def description_phase(chat_id, context):
             descriptions.append(f"{username} sedang tidur, jangan diganggu.")
 
     # Kirim semua deskripsi ke grup
-    if descriptions:
-        context.bot.send_message(chat_id=chat_id, text="\n".join(descriptions))
-    else:
-        context.bot.send_message(chat_id=chat_id, text="Tidak ada deskripsi yang dikirim.")
-
+    context.bot.send_message(chat_id=chat_id, text="\n".join(descriptions))
     context.bot.send_message(chat_id=chat_id, text="Waktu deskripsi telah habis! Sekarang waktunya untuk diskusi selama 60 detik.")
 
     # Memulai fase diskusi
@@ -142,14 +147,12 @@ def description_phase(chat_id, context):
 
     # Memulai fase voting
     voting_phase(chat_id, context)
-    
 
 def voting_phase(chat_id, context):
     players = games[chat_id]["players"]
     keyboard = []
     
     for player_id, info in players.items():
-        # Memastikan text ada dan tidak kosong
         button = InlineKeyboardButton(text=info["username"], callback_data=f"vote_{player_id}")  
         keyboard.append(button)
 
@@ -180,11 +183,30 @@ def determine_elimination(chat_id, context):
     if vote_counts:
         eliminated = max(vote_counts, key=vote_counts.get)
         context.bot.send_message(chat_id=chat_id, text=f"Pemain {games[chat_id]['players'][eliminated]['username']} telah dieliminasi.")
+        
+        # Cek peran pemain yang dieliminasi
+        if games[chat_id]['players'][eliminated]['role'] == 'spy':
+            context.bot.send_message(chat_id=chat_id, text="Dia adalah SPY.")
+            # Tambah poin untuk kemenangan warga biasa
+            for player_id in games[chat_id]["players"]:
+                if games[chat_id]['players'][player_id]['role'] == 'civilian':
+                    games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 10
+                else:
+                    games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 5
+        else:
+            context.bot.send_message(chat_id=chat_id, text="Dia adalah WARGA BIASA.")
+            # Tambah poin untuk kemenangan spy
+            for player_id in games[chat_id]["players"]:
+                if games[chat_id]['players'][player_id]['role'] == 'spy':
+                    games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 20
+                else:
+                    games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 5
+        
+        # Memeriksa kondisi akhir permainan
+        check_game_end(chat_id, context)
     else:
         context.bot.send_message(chat_id=chat_id, text="Tidak ada suara yang dihitung.")
-
-    # Memeriksa kondisi akhir permainan
-    check_game_end(chat_id, context)
+        check_game_end(chat_id, context)
 
 def check_game_end(chat_id, context):
     spies = [player_id for player_id, info in games[chat_id]["players"].items() if info["role"] == "spy"]
@@ -194,9 +216,18 @@ def check_game_end(chat_id, context):
         context.bot.send_message(chat_id=chat_id, text="Warga biasa menang!")
     elif len(spies) >= len(civilians):
         context.bot.send_message(chat_id=chat_id, text="Spy menang!")
-    
-    # Reset permainan untuk putaran berikutnya
-    reset_game(chat_id)
+    else:
+        # Jika permainan belum berakhir, lanjutkan ke putaran berikutnya
+        games[chat_id]["round"] += 1
+        context.bot.send_message(chat_id=chat_id, text=f"Putaran deskripsi ke-{games[chat_id]['round']} dimulai!")
+        
+        # Menggunakan kata dan peran yang sama dari putaran sebelumnya
+        games[chat_id]["descriptions"] = games[chat_id]["current_words"]
+        for player_id in games[chat_id]["players"]:
+            games[chat_id]["players"][player_id]["role"] = games[chat_id]["current_roles"][player_id]
+
+        # Mulai permainan lagi
+        start_game(context.bot, chat_id)
 
 def reset_game(chat_id):
     # Mengatur ulang status permainan
@@ -252,8 +283,6 @@ def button(update: Update, context: CallbackContext):
         if len(games[chat_id]["votes"]) == len(games[chat_id]["players"]):
             context.bot.send_message(chat_id=chat_id, text="Voting selesai!")
             determine_elimination(chat_id, context)
-
-
 
 # Menambahkan handler perintah
 def main():

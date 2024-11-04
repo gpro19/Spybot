@@ -272,16 +272,19 @@ def check_game_end(chat_id, context):
     else:
         # Jika permainan belum berakhir, lanjutkan ke putaran berikutnya
         games[chat_id]["round"] += 1
-        context.bot.send_message(chat_id=chat_id, text=f"Putaran deskripsi ke - {games[chat_id]['round']} dimulai!")
+        context.bot.send_message(chat_id=chat_id, text=f"Putaran deskripsi ke-{games[chat_id]['round']} dimulai!")
         
+        # Memastikan current_roles diisi dengan benar sebelum diakses
+        games[chat_id]["current_roles"] = {player_id: info["role"] for player_id, info in games[chat_id]["players"].items()}
+
         # Menggunakan kata dan peran yang sama dari putaran sebelumnya
         games[chat_id]["descriptions"] = games[chat_id]["current_words"]
         for player_id in games[chat_id]["players"]:
-            games[chat_id]["players"][player_id]["role"] = games[chat_id]["current_roles"][player_id]
+            if player_id in games[chat_id]["current_roles"]:  # Memeriksa apakah player_id ada
+                games[chat_id]["players"][player_id]["role"] = games[chat_id]["current_roles"][player_id]
 
         # Mulai permainan lagi
         start_game(context.bot, chat_id)
-
 def reset_game(chat_id):
     # Mengatur ulang status permainan
     if chat_id in games:

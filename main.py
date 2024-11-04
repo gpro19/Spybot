@@ -182,31 +182,38 @@ def determine_elimination(chat_id, context):
     # Menemukan pemain dengan suara terbanyak
     if vote_counts:
         eliminated = max(vote_counts, key=vote_counts.get)
-        context.bot.send_message(chat_id=chat_id, text=f"Pemain {games[chat_id]['players'][eliminated]['username']} telah dieliminasi.")
-        
-        # Cek peran pemain yang dieliminasi
-        if games[chat_id]['players'][eliminated]['role'] == 'spy':
-            context.bot.send_message(chat_id=chat_id, text="Dia adalah SPY.")
-            # Tambah poin untuk kemenangan warga biasa
-            for player_id in games[chat_id]["players"]:
-                if games[chat_id]['players'][player_id]['role'] == 'civilian':
-                    games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 10
-                else:
-                    games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 5
+
+        # Cek apakah pemain yang dieliminasi masih ada dalam kamus pemain
+        if eliminated in games[chat_id]['players']:
+            context.bot.send_message(chat_id=chat_id, text=f"Pemain {games[chat_id]['players'][eliminated]['username']} telah dieliminasi.")
+            
+            # Cek peran pemain yang dieliminasi
+            if games[chat_id]['players'][eliminated]['role'] == 'spy':
+                context.bot.send_message(chat_id=chat_id, text="Dia adalah SPY.")
+                # Tambah poin untuk kemenangan warga biasa
+                for player_id in games[chat_id]["players"]:
+                    if games[chat_id]['players'][player_id]['role'] == 'civilian':
+                        games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 10
+                    else:
+                        games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 5
+            else:
+                context.bot.send_message(chat_id=chat_id, text="Dia adalah WARGA BIASA.")
+                # Tambah poin untuk kemenangan spy
+                for player_id in games[chat_id]["players"]:
+                    if games[chat_id]['players'][player_id]['role'] == 'spy':
+                        games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 20
+                    else:
+                        games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 5
+            
+            # Memeriksa kondisi akhir permainan
+            check_game_end(chat_id, context)
         else:
-            context.bot.send_message(chat_id=chat_id, text="Dia adalah WARGA BIASA.")
-            # Tambah poin untuk kemenangan spy
-            for player_id in games[chat_id]["players"]:
-                if games[chat_id]['players'][player_id]['role'] == 'spy':
-                    games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 20
-                else:
-                    games[chat_id]['scores'][player_id] = games[chat_id].get('scores', {}).get(player_id, 0) + 5
-        
-        # Memeriksa kondisi akhir permainan
-        check_game_end(chat_id, context)
+            context.bot.send_message(chat_id=chat_id, text="Pemain yang akan dieliminasi tidak ditemukan.")
+            check_game_end(chat_id, context)
     else:
         context.bot.send_message(chat_id=chat_id, text="Tidak ada suara yang dihitung.")
         check_game_end(chat_id, context)
+        
 
 def check_game_end(chat_id, context):
     spies = [player_id for player_id, info in games[chat_id]["players"].items() if info["role"] == "spy"]

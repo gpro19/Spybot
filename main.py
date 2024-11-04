@@ -223,6 +223,29 @@ def handle_private_messages(update: Update, context: CallbackContext):
             game["has_described"][user_id] = True
             break
 
+def button(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()  # Menjawab callback query
+
+    user_id = query.from_user.id
+    chat_id = query.message.chat.id
+    selected_player_id = query.data.split("_")[1]
+
+    if chat_id in games and user_id in games[chat_id]["players"]:
+        if "votes" not in games[chat_id]:
+            games[chat_id]["votes"] = {}
+
+        # Simpan suara pemain
+        games[chat_id]["votes"][user_id] = selected_player_id
+        query.edit_message_text(text=f"Anda telah memilih {games[chat_id]['players'][selected_player_id]['username']}.")
+
+        # Jika semua pemain telah memberikan suara, proses voting
+        if len(games[chat_id]["votes"]) == len(games[chat_id]["players"]):
+            context.bot.send_message(chat_id=chat_id, text="Voting selesai!")
+            determine_elimination(chat_id, context)
+
+
+
 # Menambahkan handler perintah
 def main():
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk")  # Ganti dengan token bot Anda

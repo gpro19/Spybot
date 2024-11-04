@@ -122,31 +122,27 @@ def start_game(update: Update, context: CallbackContext) -> None:
     # Memulai fase deskripsi
     threading.Thread(target=description_phase, args=(chat_id, context)).start()
 
+
 def description_phase(chat_id, context):
+    games[chat_id]["is_description_phase"] = True  # Tandai fase deskripsi dimulai
     time.sleep(40)  # Tunggu selama 40 detik untuk deskripsi
 
-    # Mengumpulkan deskripsi
-    descriptions = []
-    for player_id in games[chat_id]["players"]:
-        username = games[chat_id]['players'][player_id]['username']
-        word = games[chat_id]["descriptions"][player_id]
-        
-        # Kirim pesan ke grup jika deskripsi sudah ada
-        if games[chat_id]["has_described"].get(player_id, False):
-            descriptions.append(f"{username} mendeskripsikan: {word}")
-        else:
-            # Jika pemain tidak mendeskripsikan, tambahkan pesan ke deskripsi
-            descriptions.append(f"{username} sedang tidur, jangan diganggu.")
-
-    # Kirim semua deskripsi ke grup
-    context.bot.send_message(chat_id=chat_id, text="\n".join(descriptions))
     context.bot.send_message(chat_id=chat_id, text="Waktu deskripsi telah habis! Sekarang waktunya untuk diskusi selama 60 detik.")
-
-    # Memulai fase diskusi
-    time.sleep(60)  # Tunggu selama 60 detik untuk diskusi
-
+    
     # Memulai fase voting
     voting_phase(chat_id, context)
+
+def handle_player_description(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat.id
+
+    # Pastikan permainan sedang berlangsung dan fase deskripsi aktif
+    if chat_id in games and user_id in games[chat_id]["players"]:
+        if games[chat_id].get("is_description_phase", False):
+            description_text = update.message.text
+            games[chat_id]["has_described"][user_id] = True  # Tandai bahwa pemain telah mendeskripsikan
+            context.bot.send_message(chat_id=chat_id, text=f"{games[chat_id]['players'][user_id]['username']} mendeskripsikan: {description_text}")
+
 
 def voting_phase(chat_id, context):
     players = games[chat_id]["players"]
@@ -305,7 +301,7 @@ def main():
     dp.add_handler(CommandHandler("startgame", start_game))
     dp.add_handler(CommandHandler("killgame", kill_game))  # Menambahkan handler untuk /killgame
     dp.add_handler(CallbackQueryHandler(button))  # Menggunakan CallbackQueryHandler untuk menangani tombol
-    dp.add_handler(MessageHandler(Filters.text & Filters.chat_type.private, handle_private_messages))  # Menambahkan handler untuk pesan di chat privat
+    dp.add_handler(MessageHandler(Filters.text & Filters.chat_type.private, handle_player_description))  # Menambahkan handler untuk pesan di chat privat
     
     # Mulai polling
     updater.start_polling()

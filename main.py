@@ -161,7 +161,7 @@ def voting_phase(chat_id, context):
     for player_id, info in players.items():
         # Cek apakah pemain sudah memberikan suara
         button_text = f"{info['username']} (Voted)" if player_id in games[chat_id].get("votes", {}) else info["username"]
-        button = InlineKeyboardButton(text=button_text, callback_data=f"vote_{player_id}", callback_data=f"vote_{player_id}")  
+        button = InlineKeyboardButton(text=button_text, callback_data=f"vote_{player_id}")  
         keyboard.append(button)
 
     reply_markup = InlineKeyboardMarkup(build_menu(keyboard, n_cols=1))
@@ -207,7 +207,8 @@ def button(update: Update, context: CallbackContext):
             logger.error(f"Selected player ID {selected_player_id} tidak ditemukan dalam daftar pemain.")
     else:
         logger.error(f"Chat ID {chat_id} atau User ID {user_id} tidak ditemukan dalam permainan.")
-        
+
+
 
 def determine_votes(chat_id, context):
     if "votes" not in games[chat_id]:

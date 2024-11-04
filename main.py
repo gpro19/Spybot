@@ -126,8 +126,8 @@ def description_phase(chat_id, context):
         if games[chat_id]["has_described"].get(player_id, False):
             descriptions.append(f"{username} mendeskripsikan: {word}")
         else:
-            # Jika pemain tidak mendeskripsikan, kirim pesan
-            context.bot.send_message(chat_id=player_id, text="Anda sedang tidur, jangan diganggu.")
+            # Jika pemain tidak mendeskripsikan, tambahkan pesan ke deskripsi
+            descriptions.append(f"{username} sedang tidur, jangan diganggu.")
 
     # Kirim semua deskripsi ke grup
     if descriptions:
@@ -142,6 +142,7 @@ def description_phase(chat_id, context):
 
     # Memulai fase voting
     voting_phase(chat_id, context)
+    
 
 def voting_phase(chat_id, context):
     players = games[chat_id]["players"]
@@ -222,7 +223,15 @@ def handle_private_messages(update: Update, context: CallbackContext):
             # Menandai bahwa pemain telah mendeskripsikan
             game["has_described"][user_id] = True
             break
-
+            
+def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
+    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+    if header_buttons:
+        menu.insert(0, header_buttons)
+    if footer_buttons:
+        menu.append(footer_buttons)
+    return menu
+    
 def button(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()  # Menjawab callback query

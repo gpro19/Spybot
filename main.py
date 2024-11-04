@@ -284,7 +284,9 @@ def button(update: Update, context: CallbackContext):
 
         # Simpan suara pemain
         games[chat_id]["votes"][user_id] = selected_player_id
-        query.edit_message_text(text=f"Anda telah memilih {games[chat_id]['players'][selected_player_id]['username']}.")
+        
+        # Memberikan umpan balik kepada grup
+        context.bot.send_message(chat_id=chat_id, text=f"{games[chat_id]['players'][user_id]['username']} telah memilih {games[chat_id]['players'][selected_player_id]['username']}.")
 
         # Jika semua pemain telah memberikan suara, proses voting
         if len(games[chat_id]["votes"]) == len(games[chat_id]["players"]):

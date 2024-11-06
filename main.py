@@ -12,12 +12,9 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Konfigurasi bot Telegram
-TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'
-updater = Updater(TOKEN, use_context=True)
-dispatcher = updater.dispatcher
-
-# URL Google Apps Script
-GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Web App Anda
+TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token bot Telegram Anda
+GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
+user_scores = {}
 
 # Ambil data dari Google Apps Script
 def fetch_questions():
@@ -30,7 +27,6 @@ def fetch_questions():
 
 # Mengambil data pertanyaan dan jawaban
 questions = fetch_questions()
-user_scores = {}
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("Game sudah dimulai. Ketik /next untuk pertanyaan berikutnya.")
@@ -48,7 +44,13 @@ def next_question(update: Update, context: CallbackContext) -> None:
     if question_index < len(questions):
         question_data = questions[question_index]
         question_text = question_data["question"]
-        update.message.reply_text(question_text)
+        
+        # Buat placeholder berdasarkan jumlah jawaban yang ada
+        num_placeholders = len(question_data["answers"])
+        placeholders = ["_______" for _ in range(num_placeholders)]  # Placeholder sesuai jumlah jawaban
+        display_question = f"{question_text}\n" + "\n".join([f"{i+1}. {placeholders[i]}" for i in range(num_placeholders)])
+        
+        update.message.reply_text(display_question)
     else:
         update.message.reply_text("Game selesai! Ketik /poin untuk melihat skor Anda.")
 
@@ -59,12 +61,21 @@ def answer(update: Update, context: CallbackContext) -> None:
     
     question_index = context.user_data.get('current_question', 0)
     if question_index < len(questions):
-        answer = update.message.text.lower()
+        answer_text = update.message.text.lower()
         question_data = questions[question_index]
         
-        if answer in question_data["answers"]:
+        if answer_text in question_data["answers"]:
             user_scores[user_id] += 1  # Setiap jawaban benar mendapatkan 1 poin
-            update.message.reply_text(f"{answer} (+1) [Anda]")
+            # Ganti jawaban yang benar di tampilan
+            num_placeholders = len(question_data["answers"])
+            placeholders = ["_______" for _ in range(num_placeholders)]  # Tempat kosong
+            answer_index = question_data["answers"].index(answer_text)
+            placeholders[answer_index] = answer_text  # Ganti dengan jawaban yang benar
+            
+            # Menampilkan kembali pertanyaan dengan jawaban yang sudah terisi
+            question_text = question_data["question"]
+            display_question = f"{question_text}\n" + "\n".join([f"{i+1}. {placeholders[i]}" for i in range(num_placeholders)])
+            update.message.reply_text(f"{answer_text} (+1) [Anda]\n\n{display_question}")
         else:
             update.message.reply_text("Jawaban tidak valid. Coba lagi.")
         
@@ -79,6 +90,17 @@ def points(update: Update, context: CallbackContext) -> None:
     score = user_scores.get(user_id, 0)
     update.message.reply_text(f"Skor Anda: {score}")
 
+def set_webhook():
+    webhook_url = f'https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://YOUR_DOMAIN.com/{TOKEN}'
+    response = requests.get(webhook_url)
+    return response.json()
+
+@app.route(f'/{TOKEN}', methods=['POST'])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), updater.bot)
+    dispatcher.process_update(update)
+    return 'ok'
+
 def main():
     # Menambahkan handler ke dispatcher
     dispatcher.add_handler(CommandHandler("start", start))
@@ -86,10 +108,9 @@ def main():
     dispatcher.add_handler(CommandHandler("poin", points))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
 
-    # Mulai polling
-    updater.start_polling()
-    logger.info("Bot is polling...")
+    # Mulai webhook
+    set_webhook()
+    app.run(port=8000)  # Jalankan Flask di port 8000
 
 if __name__ == '__main__':
     main()
-    app.run(port=8000)  # Jalankan Flask di port 8000

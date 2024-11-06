@@ -1,8 +1,9 @@
 import requests
+import threading
 from flask import Flask, request
-import logging
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+import logging
 
 # Inisialisasi Flask
 app = Flask(__name__)
@@ -90,6 +91,7 @@ def points(update: Update, context: CallbackContext) -> None:
     score = user_scores.get(user_id, 0)
     update.message.reply_text(f"Skor Anda: {score}")
 
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     update = request.get_json()
@@ -100,24 +102,26 @@ def webhook():
 
     return '', 200
 
-def handle_message(update):
-    # Implementasikan logika penanganan pesan di sini
-    pass
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
+
 
 def main():
-    # Buat Updater dan dispatcher
-    updater = Updater(TOKEN, use_context=True)
-    dispatcher = updater.dispatcher  # Mendefinisikan dispatcher
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk")  # Ganti dengan token bot Anda
+    updater = Updater(bot_token)
+    dp = updater.dispatcher
+    
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("next", next_question))
+    dp.add_handler(CommandHandler("poin", points))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
 
-    # Menambahkan handler ke dispatcher
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("next", next_question))
-    dispatcher.add_handler(CommandHandler("poin", points))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
+    
+    updater.start_polling()
 
-    # Mulai webhook
-    set_webhook()
-    app.run(port=8000)  # Jalankan Flask di port 8000
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
 
+    
 if __name__ == '__main__':
     main()

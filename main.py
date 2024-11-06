@@ -1,8 +1,8 @@
 import requests
 from flask import Flask, request
+import logging
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-import logging
 
 # Inisialisasi Flask
 app = Flask(__name__)
@@ -90,18 +90,25 @@ def points(update: Update, context: CallbackContext) -> None:
     score = user_scores.get(user_id, 0)
     update.message.reply_text(f"Skor Anda: {score}")
 
-def set_webhook():
-    webhook_url = f'https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://YOUR_DOMAIN.com/{TOKEN}'
-    response = requests.get(webhook_url)
-    return response.json()
-
-@app.route(f'/{TOKEN}', methods=['POST'])
+@app.route('/webhook', methods=['POST'])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), updater.bot)
-    dispatcher.process_update(update)
-    return 'ok'
+    update = request.get_json()
+    logger.info(f"Received update: {update}")
+
+    if "message" in update and "text" in update["message"]:
+        handle_message(update)
+
+    return '', 200
+
+def handle_message(update):
+    # Implementasikan logika penanganan pesan di sini
+    pass
 
 def main():
+    # Buat Updater dan dispatcher
+    updater = Updater(TOKEN, use_context=True)
+    dispatcher = updater.dispatcher  # Mendefinisikan dispatcher
+
     # Menambahkan handler ke dispatcher
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("next", next_question))

@@ -39,42 +39,36 @@ questions = fetch_questions()
 
 
 # Fungsi untuk menyimpan skor ke Google Sheets
-def record_score(player_id, player_name, score):
-    payload = {
-        'playerId': player_id,
-        'playerName': player_name,
-        'score': score
-    }
-    
-    try:
-        response = requests.post("https://script.google.com/macros/s/AKfycbwKfk6UoHCKdbG8YQXqRXBH8UbDQ6fSWSOkKMXfRMTpuTZ8KZLYz_bMC0DP6JTYqFMqDQ/exec", json=payload)
-        response.raise_for_status()
-        logger.info(f"Score recorded for {player_name}: {score}")
-    except Exception as e:
-        logger.error(f"Failed to record score: {e}")
-
 def add_score(chat_id):
-    # Memeriksa apakah ada skor untuk chat_id yang diberikan
+    # Memeriksa keberadaan skor untuk chat_id
     if chat_id not in user_data or "score" not in user_data[chat_id]:
+        print("Tidak ada skor untuk chat_id ini.")
         return  
-        
-    scores = user_data[chat_id]["score"]
-    score_message = []
 
-    # Mengumpulkan data skor ke dalam format yang diinginkan
-    for user_id, score in scores.items():
-        score_message.append({
+    scores = user_data[chat_id]["score"]
+    score_message = [
+        {
             "playerId": user_id,
             "playerName": score['nama'],
             "score": score['poin']
-        })
+        }
+        for user_id, score in scores.items()
+    ]
+
+    # Jika score_message kosong, tidak ada yang perlu dikirim
+    if not score_message:
+        print("Tidak ada skor untuk dikirim.")
+        return
+
+    # Menyimpan data dalam payload
+    payload = score_message
 
     # Mengirim data ke Google Apps Script
     try:
         response = requests.post(
-            "https://script.google.com/macros/s/AKfycbwKfk6UoHCKdbG8YQXqRXBH8UbDQ6fSWSOkKMXfRMTpuTZ8KZLYz_bMC0DP6JTYqFMqDQ/exec" ,
+            "https://script.google.com/macros/s/AKfycbwKfk6UoHCKdbG8YQXqRXBH8UbDQ6fSWSOkKMXfRMTpuTZ8KZLYz_bMC0DP6JTYqFMqDQ/exec",
             headers={"Content-Type": "application/json"},
-            data=json.dumps(score_message)  
+            json=payload  # Menggunakan parameter json untuk otomatis mengonversi ke JSON
         )
 
         # Memeriksa respons
@@ -82,13 +76,11 @@ def add_score(chat_id):
             print("Data berhasil dikirim!")
         else:
             print("Terjadi kesalahan saat mengirim data.")
-            print("Status Code:", response.status_code)
-            print("Respons:", response.text)
 
     except Exception as e:
         print(f"Error: {e}")
-        
-        
+
+
 
 
 # Fungsi untuk memulai permainan
@@ -169,8 +161,7 @@ def answer(update: Update, context: CallbackContext) -> None:
     
     user_data[chat_id]["score"][user_id]["poin"] += 1  # Tambahkan poin
     
-    # Simpan skor ke Google Sheets
-    #record_score(player_id=user_id, player_name=user_name, score=user_data[chat_id]["score"][user_id]["poin"])
+    
     
     # Simpan jawaban ke dalam answers_record pada posisi yang sesuai
     answers_record[chat_id][correct_index] = f"{answers[correct_index]} (+1) [{user_name}]"
@@ -183,18 +174,16 @@ def answer(update: Update, context: CallbackContext) -> None:
     if all(correct_answers_status[current_question["question"]]):
         response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."
         
-        #for user_id, score in user_data[chat_id]["score"].items():
-            #record_score(player_id=user_id, player_name=score["nama"], score=score["poin"])
-            
+    update.message.reply_text(response_message)
+    
+        # Simpan skor ke Google Sheets
         add_score(chat_id)
         
         del user_data[chat_id]  # Hapus data game setelah semua terjawab
         del correct_answers_status[current_question["question"]]
         del answers_record[chat_id] 
         
-    update.message.reply_text(response_message)
-
-
+    
 # Fungsi untuk melihat skor pemain
 def view_score(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
@@ -243,6 +232,13 @@ def give_up(update: Update, context: CallbackContext) -> None:
         
         response_message += "\nKetik /play untuk pertanyaan lain."
         update.message.reply_text(response_message)
+
+        add_score(chat_id)
+        
+        del user_data[chat_id]  # Hapus data game setelah semua terjawab
+        del correct_answers_status[current_question["question"]]
+        del answers_record[chat_id] 
+        
     else:
         update.message.reply_text("Semua jawaban sudah dijawab.")
         

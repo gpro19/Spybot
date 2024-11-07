@@ -64,6 +64,8 @@ def next_question(update: Update, context: CallbackContext) -> None:
 def answer(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     user_name = update.message.from_user.first_name  # Ambil nama pengguna
+
+    # Inisialisasi skor untuk pengguna baru
     if user_id not in user_scores:
         user_scores[user_id] = (user_name, 0)  # Simpan nama dan skor sebagai tuple
 
@@ -79,6 +81,7 @@ def answer(update: Update, context: CallbackContext) -> None:
             
             answer_index = question_data["answers"].index(answer_text)
             if context.user_data['answered'][answer_index]:
+                update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
                 return
             
             # Update skor

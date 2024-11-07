@@ -46,6 +46,12 @@ def add_score(chat_id):
         return  
 
     scores = user_data[chat_id]["score"]
+
+    
+    if not scores:
+        print("Skor kosong untuk chat_id ini.")
+        return
+        
     score_message = [
         {
             "playerId": user_id,

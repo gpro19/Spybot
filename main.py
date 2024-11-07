@@ -173,15 +173,15 @@ def give_up(update: Update, context: CallbackContext) -> None:
         response_message = f"{user_name} menyerah pada pertanyaan:\n\n{current_question['question']}\n"
         for i in range(len(answers)):
             if i == random_index:
-                response_message += f"{answer_to_show} [🤖 bot]\n"
+                response_message += f"{i + 1}. {answer_to_show} [🤖 bot]\n"  # Menambahkan nomor
             else:
-                response_message += f"{answers_record[chat_id][i]}\n"
+                response_message += f"{i + 1}. {answers_record[chat_id][i]}\n"  # Menambahkan nomor
         
         response_message += "\nKetik /play untuk pertanyaan lain."
         update.message.reply_text(response_message)
     else:
         update.message.reply_text("Semua jawaban sudah dijawab.")
-
+        
 
 # Fungsi untuk pertanyaan berikutnya
 def next_question(update: Update, context: CallbackContext) -> None:

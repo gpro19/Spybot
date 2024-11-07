@@ -38,10 +38,10 @@ questions = fetch_questions()
 def play_game(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
 
+    # Cek apakah game sudah dimulai
     if chat_id not in user_data:
         user_data[chat_id] = {
             "current_question": None,
-            "answers": [],
             "score": 0
         }
 
@@ -57,51 +57,58 @@ def play_game(update: Update, context: CallbackContext) -> None:
 # Fungsi untuk memproses jawaban
 def answer(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
-    user_id = update.message.from_user.id
     answer_text = update.message.text.lower().strip()
     
+    # Cek apakah permainan sudah dimulai
     if chat_id not in user_data:
         update.message.reply_text("Belum ada permainan yang dimulai. Ketik /play untuk memulai.")
         return
 
     current_question = user_data[chat_id]["current_question"]
 
+    # Cek apakah ada pertanyaan aktif
     if current_question is None:
         update.message.reply_text("Tidak ada pertanyaan aktif.")
         return
 
     answers = current_question["answers"]
-    
-    if answer_text in map(str.lower, answers):
-        correct_index = answers.index(next(ans for ans in answers if ans.lower() == answer_text))
 
-        if correct_answers_status[current_question["question"]][correct_index]:
-            update.message.reply_text("Jawaban ini sudah dijawab dengan benar oleh pemain lain. Coba jawaban lain.")
-            return
+    # Mencari jawaban yang benar
+    correct_answer_found = False
+    for i, answer in enumerate(answers):
+        if answer_text == answer.lower():  # Membandingkan dengan lowercase
+            correct_index = i
+            correct_answer_found = True
+            break
 
-        # Tandai jawaban ini sebagai benar
-        correct_answers_status[current_question["question"]][correct_index] = True
-        
-        # Update skor
-        user_data[chat_id]["score"] += 1
-
-        # Update pesan dengan jawaban yang benar
-        response_message = f"{current_question['question']}\n"
-        for i, answer in enumerate(answers):
-            if correct_answers_status[current_question["question"]][i]:
-                response_message += f"{i + 1}. {answer} (+1) [User: {update.message.from_user.first_name}]\n"
-            else:
-                response_message += f"{i + 1}. _________\n"
-        
-        if all(correct_answers_status[current_question["question"]]):
-            response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."
-            del user_data[chat_id]  # Hapus data game setelah semua terjawab
-            del correct_answers_status[current_question["question"]]
-        
-        update.message.reply_text(response_message)
-    else:
+    if not correct_answer_found:
         update.message.reply_text("Jawaban tidak valid. Coba lagi.")
+        return
 
+    if correct_answers_status[current_question["question"]][correct_index]:
+        update.message.reply_text("Jawaban ini sudah dijawab dengan benar oleh pemain lain. Coba jawaban lain.")
+        return
+
+    # Tandai jawaban ini sebagai benar
+    correct_answers_status[current_question["question"]][correct_index] = True
+    
+    # Update skor untuk pemain yang menjawab
+    user_data[chat_id]["score"] += 1
+
+    # Update pesan dengan jawaban yang benar
+    response_message = f"{current_question['question']}\n"
+    for i, answer in enumerate(answers):
+        if correct_answers_status[current_question["question"]][i]:
+            response_message += f"{i + 1}. {answer} (+1) [User: {update.message.from_user.first_name}]\n"
+        else:
+            response_message += f"{i + 1}. _________\n"
+
+    if all(correct_answers_status[current_question["question"]]):
+        response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."
+        del user_data[chat_id]  # Hapus data game setelah semua terjawab
+        del correct_answers_status[current_question["question"]]
+    
+    update.message.reply_text(response_message)
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -109,6 +116,7 @@ def webhook():
     logger.info(f"Received update: {update}")
 
     if "message" in update and "text" in update["message"]:
+        # Panggil fungsi yang memproses pesan
         handle_message(update)
 
     return '', 200
@@ -116,10 +124,7 @@ def webhook():
 def run_flask():
     app.run(host='0.0.0.0', port='8000')
 
-
-
 def main():
-
     updater = Updater(TOKEN)
     dp = updater.dispatcher
 
@@ -128,6 +133,7 @@ def main():
 
     updater.start_polling()
 
+    # Jalankan Flask pada thread terpisah
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 

@@ -43,6 +43,13 @@ def next_question(update: Update, context: CallbackContext) -> None:
     user_name = update.message.from_user.first_name
     chat_id = update.message.chat.id  # Dapatkan ID grup
 
+    group_info = group_data.get(chat_id, None)
+
+    # Periksa apakah ada pertanyaan yang sedang aktif
+    if group_info is None or group_info['current_question'] is not None:
+        update.message.reply_text("Silakan jawab pertanyaan yang sedang aktif sebelum mendapatkan pertanyaan baru.")
+        return
+
     if chat_id not in group_data:
         group_data[chat_id] = {
             'scores': {},
@@ -90,10 +97,11 @@ def answer(update: Update, context: CallbackContext) -> None:
             return
 
     answer_text = update.message.text.lower().strip()  # Normalisasi jawaban
+    valid_answers = [ans.lower() for ans in current_question["answers"]]  # Normalisasi jawaban valid
     
-    logger.info(f"User answer: {answer_text}, Valid answers: {current_question['answers']}")
+    logger.info(f"User answer: {answer_text}, Valid answers: {valid_answers}")
     
-    if answer_text in current_question["answers"]:
+    if answer_text in valid_answers:
         current_score = group_info['scores'].get(user_id, (user_name, 0))[1] + 1  
         group_info['scores'][user_id] = (user_name, current_score)  
         
@@ -101,9 +109,11 @@ def answer(update: Update, context: CallbackContext) -> None:
         if current_question not in group_info['answered_questions']:
             group_info['answered_questions'].append(current_question)
         
+        # Mengatur current_question ke None setelah menjawab
+        group_info['current_question'] = None
+        
         # Menampilkan hasil
         display_results(update, group_info, current_question)
-        next_question(update, context)  # Mengambil pertanyaan berikutnya
     else:
         update.message.reply_text("Jawaban tidak valid. Coba lagi.")
 
@@ -113,7 +123,7 @@ def display_results(update, group_info, question_data):
     placeholders = []
     
     for answer in question_data["answers"]:
-        if answer in [current_answer.lower() for _, current_answer in group_info['answered_questions']]:
+        if answer in [current_answer.lower() for current_answer in group_info['answered_questions']]:
             placeholders.append(f"{answer} (+1)")
         else:
             placeholders.append("_______")

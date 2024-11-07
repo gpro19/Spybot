@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token bot Telegram Anda
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 user_scores = {}
+leaderboard = []
 
 # Ambil data dari Google Apps Script
 def fetch_questions():
@@ -68,25 +69,38 @@ def answer(update: Update, context: CallbackContext) -> None:
     if question_data:
         answer_text = update.message.text.lower()
         
+        # Cek apakah jawaban sudah terisi
         if answer_text in question_data["answers"]:
+            # Cek apakah jawaban sudah dijawab
+            if 'answered' not in context.user_data:
+                context.user_data['answered'] = [False] * len(question_data["answers"])
+            
+            answer_index = question_data["answers"].index(answer_text)
+            if context.user_data['answered'][answer_index]:
+                update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
+                return
+            
             user_scores[user_id] += 1  # Setiap jawaban benar mendapatkan 1 poin
             
             # Ganti jawaban yang benar di tampilan
+            context.user_data['answered'][answer_index] = True  # Tandai jawaban sebagai sudah terisi
+            
             num_placeholders = len(question_data["answers"])
-            placeholders = ["_______" for _ in range(num_placeholders)]  # Tempat kosong
-            answer_index = question_data["answers"].index(answer_text)
-            placeholders[answer_index] = f"{answer_text} (+1) [{update.message.from_user.first_name}]"  # Ganti dengan jawaban yang benar dan nama
+            placeholders = ["_______" if not answered else f"{question_data['answers'][i]} (+1) [{update.message.from_user.first_name}]" for i, answered in enumerate(context.user_data['answered'])]
             
             # Menampilkan kembali pertanyaan dengan jawaban yang sudah terisi
             question_text = question_data["question"]
             display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
             update.message.reply_text(display_question)
-        #else:
-            #update.message.reply_text("Jawaban tidak valid. Coba lagi.")
-        
-        # Tandai pertanyaan sebagai dijawab
-        #context.user_data['answered_questions'].append(question_data)
-        #next_question(update, context)
+            
+            # Cek jika semua jawaban sudah terisi
+            if all(context.user_data['answered']):
+                # Tampilkan papan poin dan pesan akhir
+                display_leaderboard(update)
+                context.user_data['answered_questions'].append(question_data)  # Tandai pertanyaan sebagai dijawab
+                next_question(update, context)
+        else:
+            update.message.reply_text("Jawaban tidak valid. Coba lagi.")
     else:
         update.message.reply_text("Tidak ada pertanyaan yang sedang aktif.")
 
@@ -94,6 +108,12 @@ def points(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     score = user_scores.get(user_id, 0)
     update.message.reply_text(f"Skor Anda: {score}")
+
+def display_leaderboard(update):
+    global leaderboard
+    leaderboard = sorted(user_scores.items(), key=lambda x: x[1], reverse=True)[:10]  # Ambil 10 pemain teratas
+    leaderboard_message = "Papan Poin (Top 10) :\n" + "\n".join([f"{i + 1}. {user[0]}: {user[1]} poin" for i, user in enumerate(leaderboard)])
+    update.message.reply_text(leaderboard_message + "\n\nGunakan perintah /poin untuk melihat detail poin kamu, Ketik /mulai untuk Pertanyaan Lainnya.")
 
 @app.route('/webhook', methods=['POST'])
 def webhook():

@@ -36,10 +36,22 @@ def fetch_questions():
 # Mengambil data pertanyaan dan jawaban
 questions = fetch_questions()
 
+
+
 # Fungsi untuk memulai permainan
 def play_game(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
 
+       # Cek apakah game sudah dimulai
+    if chat_id in user_data and user_data[chat_id]["current_question"] is not None:
+        current_question = user_data[chat_id]["current_question"]
+        question_text = f"{current_question['question']}\n" + "\n".join([f"{i + 1}. {answers_record[chat_id][i]}" for i in range(len(current_question["answers"]))])
+    
+        # Gabungkan pertanyaan dan instruksi dalam satu pesan
+        full_message = f"{question_text}\n\nGame sudah dimulai, Ketik /next untuk berganti soal permainan."
+        update.message.reply_text(full_message)
+        return
+    
     # Cek apakah game sudah dimulai
     if chat_id not in user_data:
         user_data[chat_id] = {
@@ -171,6 +183,30 @@ def give_up(update: Update, context: CallbackContext) -> None:
         update.message.reply_text("Semua jawaban sudah dijawab.")
 
 
+# Fungsi untuk pertanyaan berikutnya
+def next_question(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat.id
+
+    # Cek apakah permainan sudah dimulai
+    if chat_id not in user_data or user_data[chat_id]["current_question"] is None:
+        update.message.reply_text("Game belum dimulai. Ketik /play untuk memulai permainan.")
+        return
+
+    # Hapus data pertanyaan sebelumnya
+    del correct_answers_status[user_data[chat_id]["current_question"]["question"]]
+    del answers_record[chat_id]
+
+    # Pilih pertanyaan baru
+    question = random.choice(questions)
+    user_data[chat_id]["current_question"] = question
+    correct_answers_status[question["question"]] = [False] * len(question["answers"])  # Inisialisasi status jawaban benar
+    answers_record[chat_id] = ["_______"] * len(question["answers"])  # Inisialisasi penyimpanan jawaban yang sudah diberikan
+
+    # Kirim pertanyaan ke grup
+    question_text = f"{question['question']}\n" + "\n".join([f"{i + 1}. {answers_record[chat_id][i]}" for i in range(len(question["answers"]))])
+    update.message.reply_text(question_text)
+
+
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -194,7 +230,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
     dp.add_handler(CommandHandler("score", view_score))  # Tambahkan handler untuk melihat skor
     dp.add_handler(CommandHandler("nyerah", give_up))
-
+    dp.add_handler(CommandHandler("next", next_question))  # Tambahkan handler untuk pertanyaan berikutnya
     
     updater.start_polling()
 

@@ -54,7 +54,7 @@ def next_question(update: Update, context: CallbackContext) -> None:
 
     group_info = group_data[chat_id]
 
-    # Periksa apakah ada pertanyaan yang sedang aktif
+    # Jika tidak ada pertanyaan aktif, izinkan pengguna untuk mendapatkan pertanyaan baru
     if group_info['current_question'] is not None:
         update.message.reply_text("Silakan jawab pertanyaan yang sedang aktif sebelum mendapatkan pertanyaan baru.")
         return
@@ -75,7 +75,47 @@ def next_question(update: Update, context: CallbackContext) -> None:
         display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
         
         update.message.reply_text(display_question)
+    else:
+        update.message.reply_text("Semua pertanyaan sudah dijawab! Ketik /poin untuk melihat skor Anda.")
+
+def answer(update: Update, context: CallbackContext) -> None:
+    user_id = update.message.from_user.id
+    user_name = update.message.from_user.first_name
+    chat_id = update.message.chat.id  # Dapatkan ID grup
+
+    group_info = group_data.get(chat_id, None)
     
+    if group_info is None:
+        update.message.reply_text("Tidak ada pertanyaan yang sedang aktif. Silakan ketik /next untuk mendapatkan pertanyaan.")
+        return
+
+    current_question = group_info['current_question']
+    if current_question is None:
+        update.message.reply_text("Tidak ada pertanyaan yang sedang aktif. Silakan ketik /next untuk mendapatkan pertanyaan.")
+        return
+
+    answer_text = update.message.text.lower().strip()  # Normalisasi jawaban
+    valid_answers = [ans.lower() for ans in current_question["answers"]]  # Normalisasi jawaban valid
+    
+    logger.info(f"User answer: {answer_text}, Valid answers: {valid_answers}")
+    
+    if answer_text in valid_answers:
+        current_score = group_info['scores'].get(user_id, (user_name, 0))[1] + 1  
+        group_info['scores'][user_id] = (user_name, current_score)  
+        
+        # Menandai jawaban sebagai sudah diberikan
+        if current_question not in group_info['answered_questions']:
+            group_info['answered_questions'].append(current_question)
+        
+        # Mengatur current_question ke None setelah menjawab
+        group_info['current_question'] = None
+        
+        # Menampilkan hasil
+        display_results(update, group_info, current_question)
+    else:
+        update.message.reply_text("Jawaban tidak valid. Coba lagi.")
+
+
 
 
 def answer(update: Update, context: CallbackContext) -> None:

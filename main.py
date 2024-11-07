@@ -135,6 +135,43 @@ def view_score(update: Update, context: CallbackContext) -> None:
 
     update.message.reply_text(score_message)
 
+
+# Fungsi untuk menyerah pada pertanyaan
+def give_up(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat.id
+
+    # Cek apakah permainan sudah dimulai
+    if chat_id not in user_data or user_data[chat_id]["current_question"] is None:
+        update.message.reply_text("Game belum dimulai. Ketik /play untuk memulai permainan.")
+        return
+
+    current_question = user_data[chat_id]["current_question"]
+
+    # Mencari jawaban yang belum dijawab
+    answers = current_question["answers"]
+    unanswered_answers = [i for i, answered in enumerate(correct_answers_status[current_question["question"]]) if not answered]
+
+    if unanswered_answers:
+        # Pilih satu jawaban yang belum dijawab secara acak
+        random_index = random.choice(unanswered_answers)
+        answer_to_show = answers[random_index]
+        user_name = update.message.from_user.first_name
+        
+        # Tampilkan jawaban yang belum dijawab
+        response_message = f"{user_name} menyerah pada pertanyaan:\n\n{current_question['question']}\n"
+        for i in range(len(answers)):
+            if i == random_index:
+                response_message += f"{answer_to_show} [🤖 bot]\n"
+            else:
+                response_message += f"{answers_record[chat_id][i]}\n"
+        
+        response_message += "\nKetik /play untuk pertanyaan lain."
+        update.message.reply_text(response_message)
+    else:
+        update.message.reply_text("Semua jawaban sudah dijawab.")
+
+
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     update = request.get_json()
@@ -156,7 +193,9 @@ def main():
     dp.add_handler(CommandHandler("play", play_game))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
     dp.add_handler(CommandHandler("score", view_score))  # Tambahkan handler untuk melihat skor
+    dp.add_handler(CommandHandler("nyerah", give_up))
 
+    
     updater.start_polling()
 
     # Jalankan Flask pada thread terpisah

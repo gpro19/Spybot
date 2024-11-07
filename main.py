@@ -50,6 +50,7 @@ def next_question(update: Update, context: CallbackContext) -> None:
     if chat_id not in group_questions:
         group_questions[chat_id] = questions.copy()  # Simpan salinan pertanyaan untuk grup ini
 
+    # Inisialisasi answered_questions untuk setiap pengguna
     if 'answered_questions' not in context.user_data:
         context.user_data['answered_questions'] = []
 
@@ -80,6 +81,9 @@ def answer(update: Update, context: CallbackContext) -> None:
     # Jika tidak ada pertanyaan aktif, kita bisa menggunakan pertanyaan terakhir yang dikeluarkan
     if question_data is None:
         # Coba ambil pertanyaan dari answered_questions jika ada
+        if 'answered_questions' not in context.user_data:
+            context.user_data['answered_questions'] = []  # Inisialisasi jika belum ada
+        
         if context.user_data['answered_questions']:
             last_question = context.user_data['answered_questions'][-1]
             question_data = last_question  # Ambil pertanyaan terakhir yang dijawab
@@ -119,7 +123,6 @@ def answer(update: Update, context: CallbackContext) -> None:
             update.message.reply_text(display_question)        
     else:
         update.message.reply_text("Jawaban tidak valid. Coba lagi.")
-
 
 def display_leaderboard():
     # Mengurutkan berdasarkan skor dan mengambil 10 pemain teratas

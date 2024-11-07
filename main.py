@@ -18,6 +18,7 @@ TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token b
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
 
+
 # Inisialisasi data untuk menyimpan informasi game
 user_data = {}
 correct_answers_status = {}
@@ -43,7 +44,7 @@ def play_game(update: Update, context: CallbackContext) -> None:
     if chat_id not in user_data:
         user_data[chat_id] = {
             "current_question": None,
-            "score": {},
+            "score": {}
         }
 
     # Pilih pertanyaan secara acak
@@ -59,6 +60,7 @@ def play_game(update: Update, context: CallbackContext) -> None:
 def answer(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
     user_id = update.message.from_user.id
+    user_name = update.message.from_user.first_name
     answer_text = update.message.text.lower().strip()
     
     # Cek apakah permainan sudah dimulai
@@ -96,14 +98,15 @@ def answer(update: Update, context: CallbackContext) -> None:
     
     # Update skor untuk pemain yang menjawab
     if user_id not in user_data[chat_id]["score"]:
-        user_data[chat_id]["score"][user_id] = 0
-    user_data[chat_id]["score"][user_id] += 1
+        user_data[chat_id]["score"][user_id] = {"nama": user_name, "poin": 0}
+    
+    user_data[chat_id]["score"][user_id]["poin"] += 1  # Tambahkan poin
 
     # Update pesan dengan jawaban yang benar
     response_message = f"{current_question['question']}\n"
     for i, answer in enumerate(answers):
         if correct_answers_status[current_question["question"]][i]:
-            response_message += f"{i + 1}. {answer} (+1) [{update.message.from_user.first_name}]\n"
+            response_message += f"{i + 1}. {answer} (+1) [{user_name}]\n"
         else:
             response_message += f"{i + 1}. _________\n"
 
@@ -126,8 +129,7 @@ def view_score(update: Update, context: CallbackContext) -> None:
     score_message = "Skor Pemain:\n"
 
     for user_id, score in scores.items():
-        username = context.bot.get_chat_member(chat_id, user_id).user.username or "Unknown"
-        score_message += f"@{username}: {score}\n"
+        score_message += f"{score['nama']}: {score['poin']}\n"
 
     update.message.reply_text(score_message)
 

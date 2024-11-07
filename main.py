@@ -19,9 +19,11 @@ GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2
 
 
 
+
 # Inisialisasi data untuk menyimpan informasi game
 user_data = {}
 correct_answers_status = {}
+answers_record = {}  # Untuk menyimpan jawaban yang sudah diberikan
 
 # Ambil data dari Google Apps Script
 def fetch_questions():
@@ -51,6 +53,7 @@ def play_game(update: Update, context: CallbackContext) -> None:
     question = random.choice(questions)
     user_data[chat_id]["current_question"] = question
     correct_answers_status[question["question"]] = [False] * len(question["answers"])  # Inisialisasi status jawaban benar
+    answers_record[chat_id] = []  # Inisialisasi penyimpanan jawaban yang sudah diberikan
 
     # Kirim pertanyaan ke grup
     question_text = f"{question['question']}\n" + "\n".join([f"{i + 1}. _________" for i in range(len(question["answers"]))])
@@ -102,23 +105,28 @@ def answer(update: Update, context: CallbackContext) -> None:
     
     user_data[chat_id]["score"][user_id]["poin"] += 1  # Tambahkan poin
 
+    # Simpan jawaban ke dalam answers_record
+    answer_record = f"{answers[correct_index]} (+{user_data[chat_id]['score'][user_id]['poin']}) [{user_name}]"
+    answers_record[chat_id].append(answer_record)
+
     # Update pesan dengan jawaban yang benar
     response_message = f"{current_question['question']}\n"
     for i in range(len(answers)):
         if correct_answers_status[current_question["question"]][i]:
-            # Ambil nama dari data skor
-            username = user_data[chat_id]["score"][user_id]["nama"]
-            response_message += f"{i + 1}. {answers[i]} (+1) [{username}]\n"
+            response_message += f"{answers[i]} (+{user_data[chat_id]['score'][user_id]['poin']}) [{user_name}]\n"
         else:
             response_message += f"{i + 1}. _________\n"
+
+    # Menampilkan semua jawaban yang telah diberikan
+    response_message += "\nJawaban yang telah diberikan:\n" + "\n".join(answers_record[chat_id])
 
     if all(correct_answers_status[current_question["question"]]):
         response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."
         del user_data[chat_id]  # Hapus data game setelah semua terjawab
         del correct_answers_status[current_question["question"]]
+        del answers_record[chat_id]  # Hapus catatan jawaban yang telah diberikan
     
     update.message.reply_text(response_message)
-    
 
 # Fungsi untuk melihat skor pemain
 def view_score(update: Update, context: CallbackContext) -> None:

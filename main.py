@@ -181,7 +181,7 @@ def answer(update: Update, context: CallbackContext) -> None:
         del correct_answers_status[current_question["question"]]
         del answers_record[chat_id] 
         
-     update.message.reply_text(response_message)
+    update.message.reply_text(response_message)
        
     
 # Fungsi untuk melihat skor pemain

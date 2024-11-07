@@ -60,11 +60,12 @@ def next_question(update: Update, context: CallbackContext) -> None:
     else:
         update.message.reply_text("Semua pertanyaan sudah dijawab! Ketik /poin untuk melihat skor Anda.")
 
+
 def answer(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     user_name = update.message.from_user.first_name  # Ambil nama pengguna
     if user_id not in user_scores:
-        user_scores[user_id] = (user_name, 0)  # Simpan nama dan skor
+        user_scores[user_id] = (user_name, 0)  # Simpan nama dan skor sebagai tuple
 
     question_data = context.user_data.get('current_question', None)
     if question_data:
@@ -74,11 +75,10 @@ def answer(update: Update, context: CallbackContext) -> None:
         if answer_text in question_data["answers"]:
             # Cek apakah jawaban sudah dijawab
             if 'answered' not in context.user_data:
-                context.user_data['answered'] = [False] * len(question_data["answers"])  # Perbaiki di sini
+                context.user_data['answered'] = [False] * len(question_data["answers"])  # Inisialisasi jawaban
             
             answer_index = question_data["answers"].index(answer_text)
             if context.user_data['answered'][answer_index]:
-                update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
                 return
             
             # Update skor
@@ -107,7 +107,7 @@ def answer(update: Update, context: CallbackContext) -> None:
                 update.message.reply_text(display_question)        
     else:
         update.message.reply_text("Tidak ada pertanyaan yang sedang aktif.")
-        
+
 
 def display_leaderboard():
     global leaderboard

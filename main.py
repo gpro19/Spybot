@@ -106,7 +106,7 @@ def answer(update: Update, context: CallbackContext) -> None:
     response_message = f"{current_question['question']}\n"
     for i, answer in enumerate(answers):
         if correct_answers_status[current_question["question"]][i]:
-            response_message += f"{i + 1}. {answer} (+1) [{user_name}]\n"
+            response_message += f"{i + 1}. {answer} (+1) [{user_name}]\n"  # Pastikan menggunakan user_name
         else:
             response_message += f"{i + 1}. _________\n"
 
@@ -116,6 +116,8 @@ def answer(update: Update, context: CallbackContext) -> None:
         del correct_answers_status[current_question["question"]]
     
     update.message.reply_text(response_message)
+
+
 
 # Fungsi untuk melihat skor pemain
 def view_score(update: Update, context: CallbackContext) -> None:

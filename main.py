@@ -18,8 +18,6 @@ TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token b
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
 
-
-
 # Inisialisasi data untuk menyimpan informasi game
 user_data = {}
 correct_answers_status = {}
@@ -53,10 +51,10 @@ def play_game(update: Update, context: CallbackContext) -> None:
     question = random.choice(questions)
     user_data[chat_id]["current_question"] = question
     correct_answers_status[question["question"]] = [False] * len(question["answers"])  # Inisialisasi status jawaban benar
-    answers_record[chat_id] = []  # Inisialisasi penyimpanan jawaban yang sudah diberikan
+    answers_record[chat_id] = ["_______"] * len(question["answers"])  # Inisialisasi penyimpanan jawaban yang sudah diberikan
 
     # Kirim pertanyaan ke grup
-    question_text = f"{question['question']}\n" + "\n".join([f"{i + 1}. _________" for i in range(len(question["answers"]))])
+    question_text = f"{question['question']}\n" + "\n".join([f"{i + 1}. {answers_record[chat_id][i]}" for i in range(len(question["answers"]))])
     update.message.reply_text(question_text)
 
 # Fungsi untuk memproses jawaban
@@ -105,20 +103,13 @@ def answer(update: Update, context: CallbackContext) -> None:
     
     user_data[chat_id]["score"][user_id]["poin"] += 1  # Tambahkan poin
 
-    # Simpan jawaban ke dalam answers_record
-    answer_record = f"{answers[correct_index]} (+{user_data[chat_id]['score'][user_id]['poin']}) [{user_name}]"
-    answers_record[chat_id].append(answer_record)
+    # Simpan jawaban ke dalam answers_record pada posisi yang sesuai
+    answers_record[chat_id][correct_index] = f"{answers[correct_index]} (+{user_data[chat_id]['score'][user_id]['poin']}) [{user_name}]"
 
     # Update pesan dengan jawaban yang benar
     response_message = f"{current_question['question']}\n"
     for i in range(len(answers)):
-        if correct_answers_status[current_question["question"]][i]:
-            response_message += f"{answers[i]} (+{user_data[chat_id]['score'][user_id]['poin']}) [{user_name}]\n"
-        else:
-            response_message += f"{i + 1}. _________\n"
-
-    # Menampilkan semua jawaban yang telah diberikan
-    response_message += "\nJawaban yang telah diberikan:\n" + "\n".join(answers_record[chat_id])
+        response_message += f"{i + 1}. {answers_record[chat_id][i]}\n"
 
     if all(correct_answers_status[current_question["question"]]):
         response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."

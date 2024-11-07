@@ -172,9 +172,7 @@ def answer(update: Update, context: CallbackContext) -> None:
         response_message += f"{i + 1}. {answers_record[chat_id][i]}\n"
 
     if all(correct_answers_status[current_question["question"]]):
-        response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."
-        
-    update.message.reply_text(response_message)
+        response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."        
     
         # Simpan skor ke Google Sheets
         add_score(chat_id)
@@ -183,6 +181,8 @@ def answer(update: Update, context: CallbackContext) -> None:
         del correct_answers_status[current_question["question"]]
         del answers_record[chat_id] 
         
+     update.message.reply_text(response_message)
+       
     
 # Fungsi untuk melihat skor pemain
 def view_score(update: Update, context: CallbackContext) -> None:

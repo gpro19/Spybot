@@ -81,12 +81,12 @@ def answer(update: Update, context: CallbackContext) -> None:
             question_text = question_data["question"]
             display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
             update.message.reply_text(display_question)
-        else:
-            update.message.reply_text("Jawaban tidak valid. Coba lagi.")
+        #else:
+            #update.message.reply_text("Jawaban tidak valid. Coba lagi.")
         
         # Tandai pertanyaan sebagai dijawab
-        context.user_data['answered_questions'].append(question_data)
-        next_question(update, context)
+        #context.user_data['answered_questions'].append(question_data)
+        #next_question(update, context)
     else:
         update.message.reply_text("Tidak ada pertanyaan yang sedang aktif.")
 

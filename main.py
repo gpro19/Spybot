@@ -43,13 +43,7 @@ def next_question(update: Update, context: CallbackContext) -> None:
     user_name = update.message.from_user.first_name
     chat_id = update.message.chat.id  # Dapatkan ID grup
 
-    group_info = group_data.get(chat_id, None)
-
-    # Periksa apakah ada pertanyaan yang sedang aktif
-    if group_info is None or group_info['current_question'] is not None:
-        update.message.reply_text("Silakan jawab pertanyaan yang sedang aktif sebelum mendapatkan pertanyaan baru.")
-        return
-
+    # Inisialisasi data grup jika belum ada
     if chat_id not in group_data:
         group_data[chat_id] = {
             'scores': {},
@@ -58,15 +52,22 @@ def next_question(update: Update, context: CallbackContext) -> None:
             'answered_questions': []  # Menyimpan pertanyaan yang sudah dijawab
         }
 
-    if user_id not in group_data[chat_id]['scores']:
-        group_data[chat_id]['scores'][user_id] = (user_name, 0)  # Simpan nama dan skor awal
+    group_info = group_data[chat_id]
+
+    # Periksa apakah ada pertanyaan yang sedang aktif
+    if group_info['current_question'] is not None:
+        update.message.reply_text("Silakan jawab pertanyaan yang sedang aktif sebelum mendapatkan pertanyaan baru.")
+        return
+
+    if user_id not in group_info['scores']:
+        group_info['scores'][user_id] = (user_name, 0)  # Simpan nama dan skor awal
 
     # Pilih pertanyaan acak yang belum dijawab
-    available_questions = [q for q in group_data[chat_id]['questions'] if q not in group_data[chat_id]['answered_questions']]
+    available_questions = [q for q in group_info['questions'] if q not in group_info['answered_questions']]
     
     if available_questions:
         question_data = random.choice(available_questions)
-        group_data[chat_id]['current_question'] = question_data  # Simpan pertanyaan yang sedang aktif
+        group_info['current_question'] = question_data  # Simpan pertanyaan yang sedang aktif
         question_text = question_data["question"]
         
         num_placeholders = len(question_data["answers"])
@@ -74,8 +75,8 @@ def next_question(update: Update, context: CallbackContext) -> None:
         display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
         
         update.message.reply_text(display_question)
-    else:
-        update.message.reply_text("Semua pertanyaan sudah dijawab! Ketik /poin untuk melihat skor Anda.")
+    
+
 
 def answer(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id

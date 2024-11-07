@@ -257,6 +257,7 @@ def next_question(update: Update, context: CallbackContext) -> None:
         return
 
     # Hapus data pertanyaan sebelumnya
+    add_score(chat_id)
     del correct_answers_status[user_data[chat_id]["current_question"]["question"]]
     del answers_record[chat_id]
 

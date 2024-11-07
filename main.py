@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 # Konfigurasi bot Telegram
 TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token bot Telegram Anda
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
+
 user_scores = {}
-leaderboard = []
 
 # Ambil data dari Google Apps Script
 def fetch_questions():
@@ -38,7 +38,7 @@ def start(update: Update, context: CallbackContext) -> None:
 def next_question(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     if user_id not in user_scores:
-        user_scores[user_id] = 0
+        user_scores[user_id] = (update.message.from_user.first_name, 0)  # Simpan nama dan skor awal
 
     if 'answered_questions' not in context.user_data:
         context.user_data['answered_questions'] = []
@@ -59,7 +59,6 @@ def next_question(update: Update, context: CallbackContext) -> None:
         update.message.reply_text(display_question)
     else:
         update.message.reply_text("Semua pertanyaan sudah dijawab! Ketik /poin untuk melihat skor Anda.")
-
 
 def answer(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
@@ -111,7 +110,6 @@ def answer(update: Update, context: CallbackContext) -> None:
     else:
         update.message.reply_text("Tidak ada pertanyaan yang sedang aktif.")
 
-
 def display_leaderboard():
     global leaderboard
     # Mengurutkan berdasarkan skor dan mengambil 10 pemain teratas
@@ -119,12 +117,11 @@ def display_leaderboard():
     leaderboard_message = "Papan Poin (Top 10) :\n" + "\n".join([f"{i + 1}. {user[1][0]}: {user[1][1]} poin" for i, user in enumerate(sorted_users)])
     return leaderboard_message
 
-
 def points(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
-    score = user_scores.get(user_id, 0)
+    user_data = user_scores.get(user_id, (None, 0))  # Ambil tuple, default ke (None, 0)
+    score = user_data[1]  # Ambil skor dari tuple
     update.message.reply_text(f"Skor Anda: {score}")
-
 
 @app.route('/webhook', methods=['POST'])
 def webhook():

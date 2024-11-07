@@ -43,15 +43,13 @@ def next_question(update: Update, context: CallbackContext) -> None:
     user_name = update.message.from_user.first_name
     chat_id = update.message.chat.id  # Dapatkan ID grup
 
-    # Inisialisasi skor untuk pengguna baru
     if user_id not in user_scores:
-        user_scores[user_id] = (user_name, 0)
+        user_scores[user_id] = (user_name, 0)  # Simpan nama dan skor awal
 
     # Inisialisasi pertanyaan untuk grup jika belum ada
     if chat_id not in group_questions:
         group_questions[chat_id] = questions.copy()  # Simpan salinan pertanyaan untuk grup ini
 
-    # Inisialisasi answered_questions untuk setiap pengguna
     if 'answered_questions' not in context.user_data:
         context.user_data['answered_questions'] = []
 
@@ -60,12 +58,11 @@ def next_question(update: Update, context: CallbackContext) -> None:
     
     if available_questions:
         question_data = random.choice(available_questions)
-        context.user_data['current_question'] = question_data
+        context.user_data['current_question'] = question_data  # Simpan pertanyaan yang sedang aktif
         question_text = question_data["question"]
         
-        # Buat placeholder berdasarkan jumlah jawaban yang ada
         num_placeholders = len(question_data["answers"])
-        placeholders = ["_______" for _ in range(num_placeholders)]  # Placeholder sesuai jumlah jawaban
+        placeholders = ["_______" for _ in range(num_placeholders)]  
         display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
         
         update.message.reply_text(display_question)
@@ -77,50 +74,52 @@ def answer(update: Update, context: CallbackContext) -> None:
     user_name = update.message.from_user.first_name
     chat_id = update.message.chat.id  # Dapatkan ID grup
 
+    # Ambil pertanyaan yang sedang aktif
     question_data = context.user_data.get('current_question', None)
+
+    # Jika tidak ada pertanyaan aktif, kita bisa menggunakan pertanyaan terakhir yang dikeluarkan
     if question_data is None:
-        update.message.reply_text("Tidak ada pertanyaan yang sedang aktif. Silakan ketik /next untuk mendapatkan pertanyaan.")
-        return
+        # Coba ambil pertanyaan dari answered_questions jika ada
+        if context.user_data['answered_questions']:
+            last_question = context.user_data['answered_questions'][-1]
+            question_data = last_question  # Ambil pertanyaan terakhir yang dijawab
+        else:
+            update.message.reply_text("Tidak ada pertanyaan yang sedang aktif. Silakan ketik /next untuk mendapatkan pertanyaan.")
+            return
 
     answer_text = update.message.text.lower()
     
-    # Cek apakah jawaban sudah terisi
     if answer_text in question_data["answers"]:
-        # Cek apakah jawaban sudah dijawab
         if 'answered' not in context.user_data:
-            context.user_data['answered'] = [False] * len(question_data["answers"])  # Inisialisasi jawaban
+            context.user_data['answered'] = [False] * len(question_data["answers"])  
         
         answer_index = question_data["answers"].index(answer_text)
         if context.user_data['answered'][answer_index]:
             update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
             return
         
-        # Update skor
-        current_score = user_scores[user_id][1] + 1  # Ambil skor yang ada dan tambahkan 1
-        user_scores[user_id] = (user_name, current_score)  # Update dengan nama dan skor
+        current_score = user_scores[user_id][1] + 1  
+        user_scores[user_id] = (user_name, current_score)  
         
-        # Ganti jawaban yang benar di tampilan
-        context.user_data['answered'][answer_index] = True  # Tandai jawaban sebagai sudah terisi
+        context.user_data['answered'][answer_index] = True  
         
         num_placeholders = len(question_data["answers"])
         placeholders = ["_______" if not answered else f"{question_data['answers'][i]} (+1) [{user_name}]" for i, answered in enumerate(context.user_data['answered'])]
         
-        # Menampilkan kembali pertanyaan dengan jawaban yang sudah terisi
         question_text = question_data["question"]
         display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
         
-        # Cek jika semua jawaban sudah terisi
         if all(context.user_data['answered']):
-            # Gabungkan semua informasi dalam satu pesan
-            leaderboard_message = display_leaderboard()  # Dapatkan papan poin
+            leaderboard_message = display_leaderboard()  
             combined_message = f"{display_question}\n\n{leaderboard_message}\n\nGunakan perintah /poin untuk melihat detail poin kamu, Ketik /mulai untuk Pertanyaan Lainnya."
             update.message.reply_text(combined_message)
-            context.user_data['answered_questions'].append(question_data)  # Tandai pertanyaan sebagai dijawab
+            context.user_data['answered_questions'].append(question_data)  
             next_question(update, context)
         else:
             update.message.reply_text(display_question)        
     else:
         update.message.reply_text("Jawaban tidak valid. Coba lagi.")
+
 
 def display_leaderboard():
     # Mengurutkan berdasarkan skor dan mengambil 10 pemain teratas

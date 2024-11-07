@@ -74,11 +74,11 @@ def answer(update: Update, context: CallbackContext) -> None:
         if answer_text in question_data["answers"]:
             # Cek apakah jawaban sudah dijawab
             if 'answered' not in context.user_data:
-                context.user_data['answered'] = [False] * len(question_data["answers"]message
-                    
+                context.user_data['answered'] = [False] * len(question_data["answers"])  # Perbaiki di sini
+            
             answer_index = question_data["answers"].index(answer_text)
             if context.user_data['answered'][answer_index]:
-                #update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
+                update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
                 return
             
             # Update skor
@@ -107,6 +107,7 @@ def answer(update: Update, context: CallbackContext) -> None:
                 update.message.reply_text(display_question)        
     else:
         update.message.reply_text("Tidak ada pertanyaan yang sedang aktif.")
+        
 
 def display_leaderboard():
     global leaderboard
@@ -114,7 +115,6 @@ def display_leaderboard():
     sorted_users = sorted(user_scores.items(), key=lambda x: x[1][1], reverse=True)[:10]
     leaderboard_message = "Papan Poin (Top 10) :\n" + "\n".join([f"{i + 1}. {user[1][0]}: {user[1][1]} poin" for i, user in enumerate(sorted_users)])
     return leaderboard_message
-
 
 
 def points(update: Update, context: CallbackContext) -> None:

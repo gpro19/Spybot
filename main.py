@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token bot Telegram Anda
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
+
 # Inisialisasi data untuk menyimpan informasi game
 user_data = {}
 correct_answers_status = {}
@@ -42,7 +43,7 @@ def play_game(update: Update, context: CallbackContext) -> None:
     if chat_id not in user_data:
         user_data[chat_id] = {
             "current_question": None,
-            "score": 0
+            "score": {},
         }
 
     # Pilih pertanyaan secara acak
@@ -57,6 +58,7 @@ def play_game(update: Update, context: CallbackContext) -> None:
 # Fungsi untuk memproses jawaban
 def answer(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
     answer_text = update.message.text.lower().strip()
     
     # Cek apakah permainan sudah dimulai
@@ -93,13 +95,15 @@ def answer(update: Update, context: CallbackContext) -> None:
     correct_answers_status[current_question["question"]][correct_index] = True
     
     # Update skor untuk pemain yang menjawab
-    user_data[chat_id]["score"] += 1
+    if user_id not in user_data[chat_id]["score"]:
+        user_data[chat_id]["score"][user_id] = 0
+    user_data[chat_id]["score"][user_id] += 1
 
     # Update pesan dengan jawaban yang benar
     response_message = f"{current_question['question']}\n"
     for i, answer in enumerate(answers):
         if correct_answers_status[current_question["question"]][i]:
-            response_message += f"{i + 1}. {answer} (+1) [User: {update.message.from_user.first_name}]\n"
+            response_message += f"{i + 1}. {answer} (+1) [{update.message.from_user.first_name}]\n"
         else:
             response_message += f"{i + 1}. _________\n"
 
@@ -109,6 +113,23 @@ def answer(update: Update, context: CallbackContext) -> None:
         del correct_answers_status[current_question["question"]]
     
     update.message.reply_text(response_message)
+
+# Fungsi untuk melihat skor pemain
+def view_score(update: Update, context: CallbackContext) -> None:
+    chat_id = update.message.chat.id
+
+    if chat_id not in user_data or "score" not in user_data[chat_id]:
+        update.message.reply_text("Belum ada permainan yang dimulai atau belum ada pemain yang memiliki skor.")
+        return
+
+    scores = user_data[chat_id]["score"]
+    score_message = "Skor Pemain:\n"
+
+    for user_id, score in scores.items():
+        username = context.bot.get_chat_member(chat_id, user_id).user.username or "Unknown"
+        score_message += f"@{username}: {score}\n"
+
+    update.message.reply_text(score_message)
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -130,6 +151,7 @@ def main():
 
     dp.add_handler(CommandHandler("play", play_game))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
+    dp.add_handler(CommandHandler("score", view_score))  # Tambahkan handler untuk melihat skor
 
     updater.start_polling()
 

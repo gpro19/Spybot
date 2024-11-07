@@ -1,29 +1,24 @@
 import requests
-import os
+import logging
+import random
 import threading
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-import logging
-import random
 
 # Inisialisasi Flask
 app = Flask(__name__)
 
-# Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+# Konfigurasi Logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Konfigurasi bot Telegram
+# URL Google Apps Script untuk mengambil pertanyaan
 TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token bot Telegram Anda
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
-
-
-# Menyimpan skor dan jawaban berdasarkan ID grup
-group_user_scores = {}
-group_user_answers = {}
-group_questions = {}
+# Inisialisasi data untuk menyimpan informasi game
+user_data = {}
 correct_answers_status = {}
 
 # Ambil data dari Google Apps Script
@@ -39,121 +34,74 @@ def fetch_questions():
 # Mengambil data pertanyaan dan jawaban
 questions = fetch_questions()
 
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text("Game sudah dimulai. Ketik /next untuk pertanyaan berikutnya.")
-
-def next_question(update: Update, context: CallbackContext) -> None:
-    user_id = update.message.from_user.id
-    user_name = update.message.from_user.first_name
+# Fungsi untuk memulai permainan
+def play_game(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
 
-    if chat_id not in group_user_scores:
-        group_user_scores[chat_id] = {}
-        
-    if chat_id not in group_questions:
-        group_questions[chat_id] = questions.copy()
+    if chat_id not in user_data:
+        user_data[chat_id] = {
+            "current_question": None,
+            "answers": [],
+            "score": 0
+        }
 
-    if user_id not in group_user_scores[chat_id]:
-        group_user_scores[chat_id][user_id] = (user_name, 0)
+    # Pilih pertanyaan secara acak
+    question = random.choice(questions)
+    user_data[chat_id]["current_question"] = question
+    correct_answers_status[question["question"]] = [False] * len(question["answers"])  # Inisialisasi status jawaban benar
 
-    if chat_id not in group_user_answers:
-        group_user_answers[chat_id] = {}
+    # Kirim pertanyaan ke grup
+    question_text = f"{question['question']}\n" + "\n".join([f"{i + 1}. _________" for i in range(len(question["answers"]))])
+    update.message.reply_text(question_text)
 
-    if user_id not in group_user_answers[chat_id]:
-        group_user_answers[chat_id][user_id] = []
-
-    if 'answered_questions' not in context.user_data:
-        context.user_data['answered_questions'] = []
-
-    available_questions = [q for q in group_questions[chat_id] if q not in context.user_data['answered_questions']]
-    
-    if available_questions:
-        question_data = random.choice(available_questions)
-        context.user_data['current_question'] = question_data
-        question_text = question_data["question"]
-        
-        num_placeholders = len(question_data["answers"])
-        placeholders = ["_______" for _ in range(num_placeholders)]
-        
-        display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
-        
-        # Inisialisasi status jawaban yang benar
-        correct_answers_status[question_data['question']] = [False] * len(question_data['answers'])
-
-        update.message.reply_text(display_question)
-    else:
-        update.message.reply_text("Semua pertanyaan sudah dijawab! Ketik /poin untuk melihat skor Anda.")
-
+# Fungsi untuk memproses jawaban
 def answer(update: Update, context: CallbackContext) -> None:
-    user_id = update.message.from_user.id
-    user_name = update.message.from_user.first_name
     chat_id = update.message.chat.id
-
-    question_data = context.user_data.get('current_question', None)
-
-    if question_data is None:
-        update.message.reply_text("Tidak ada pertanyaan yang sedang aktif. Silakan ketik /next untuk mendapatkan pertanyaan.")
+    user_id = update.message.from_user.id
+    answer_text = update.message.text.lower().strip()
+    
+    if chat_id not in user_data:
+        update.message.reply_text("Belum ada permainan yang dimulai. Ketik /play untuk memulai.")
         return
 
-    answer_text = update.message.text.lower()
+    current_question = user_data[chat_id]["current_question"]
 
-    if answer_text in map(str.lower, question_data["answers"]):
-        correct_index = question_data["answers"].index(next(ans for ans in question_data["answers"] if ans.lower() == answer_text))
+    if current_question is None:
+        update.message.reply_text("Tidak ada pertanyaan aktif.")
+        return
 
-        # Memeriksa apakah jawaban sudah dijawab dan benar
-        if correct_answers_status[question_data['question']][correct_index]:
+    answers = current_question["answers"]
+    
+    if answer_text in map(str.lower, answers):
+        correct_index = answers.index(next(ans for ans in answers if ans.lower() == answer_text))
+
+        if correct_answers_status[current_question["question"]][correct_index]:
             update.message.reply_text("Jawaban ini sudah dijawab dengan benar oleh pemain lain. Coba jawaban lain.")
             return
-        
-        # Menyimpan jawaban
-        if chat_id not in group_user_answers:
-            group_user_answers[chat_id] = {}
-        if user_id not in group_user_answers[chat_id]:
-            group_user_answers[chat_id][user_id] = []
 
-        if answer_text in group_user_answers[chat_id][user_id]:
-            update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
-            return
+        # Tandai jawaban ini sebagai benar
+        correct_answers_status[current_question["question"]][correct_index] = True
         
-        # Menambahkan jawaban ke penyimpanan
-        group_user_answers[chat_id][user_id].append(answer_text)
+        # Update skor
+        user_data[chat_id]["score"] += 1
 
-        # Mengupdate skor pengguna
-        current_score = group_user_scores[chat_id].get(user_id, (user_name, 0))[1] + 1
-        group_user_scores[chat_id][user_id] = (user_name, current_score)
-
-        # Menandai jawaban sebagai benar
-        correct_answers_status[question_data['question']][correct_index] = True
-
-        num_placeholders = len(question_data["answers"])
-        placeholders = ["_______" if not answered else f"{question_data['answers'][i]} (+1) [{user_name}]" for i, answered in enumerate(correct_answers_status[question_data['question']])]
+        # Update pesan dengan jawaban yang benar
+        response_message = f"{current_question['question']}\n"
+        for i, answer in enumerate(answers):
+            if correct_answers_status[current_question["question"]][i]:
+                response_message += f"{i + 1}. {answer} (+1) [User: {update.message.from_user.first_name}]\n"
+            else:
+                response_message += f"{i + 1}. _________\n"
         
-        question_text = question_data["question"]
-        display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
+        if all(correct_answers_status[current_question["question"]]):
+            response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."
+            del user_data[chat_id]  # Hapus data game setelah semua terjawab
+            del correct_answers_status[current_question["question"]]
         
-        # Jika semua jawaban sudah terjawab
-        if all(correct_answers_status[question_data['question']]):
-            leaderboard_message = display_leaderboard(chat_id)
-            combined_message = f"{display_question}\n\n{leaderboard_message}\n\nGunakan perintah /poin untuk melihat detail poin kamu, Ketik /next untuk Pertanyaan Lainnya."
-            update.message.reply_text(combined_message)
-            context.user_data['answered_questions'].append(question_data)
-            next_question(update, context)
-        else:
-            update.message.reply_text(display_question)        
+        update.message.reply_text(response_message)
     else:
         update.message.reply_text("Jawaban tidak valid. Coba lagi.")
 
-def display_leaderboard(chat_id):
-    sorted_users = sorted(group_user_scores[chat_id].items(), key=lambda x: x[1][1], reverse=True)[:10]
-    leaderboard_message = "Papan Poin (Top 10):\n" + "\n".join([f"{i + 1}. {user[1][0]}: {user[1][1]} poin" for i, user in enumerate(sorted_users)])
-    return leaderboard_message
-
-def points(update: Update, context: CallbackContext) -> None:
-    user_id = update.message.from_user.id
-    user_name = update.message.from_user.first_name
-    chat_id = update.message.chat.id
-    score = group_user_scores.get(chat_id, {}).get(user_id, (user_name, 0))[1]
-    update.message.reply_text(f"Skor Anda: {score}")
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -166,15 +114,16 @@ def webhook():
     return '', 200
 
 def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8000)))
+    app.run(host='0.0.0.0', port='8000')
+
+
 
 def main():
+
     updater = Updater(TOKEN)
     dp = updater.dispatcher
-    
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("next", next_question))
-    dp.add_handler(CommandHandler("poin", points))
+
+    dp.add_handler(CommandHandler("play", play_game))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
 
     updater.start_polling()

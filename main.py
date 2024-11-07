@@ -19,7 +19,9 @@ TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token b
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
 
+# Menyimpan skor dan pertanyaan berdasarkan ID grup
 user_scores = {}
+group_questions = {}
 
 # Ambil data dari Google Apps Script
 def fetch_questions():
@@ -39,16 +41,22 @@ def start(update: Update, context: CallbackContext) -> None:
 def next_question(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     user_name = update.message.from_user.first_name
+    chat_id = update.message.chat.id  # Dapatkan ID grup
 
+    # Inisialisasi skor untuk pengguna baru
     if user_id not in user_scores:
-        user_scores[user_id] = (user_name, 0)  # Simpan nama dan skor awal
+        user_scores[user_id] = (user_name, 0)
+
+    # Inisialisasi pertanyaan untuk grup jika belum ada
+    if chat_id not in group_questions:
+        group_questions[chat_id] = questions.copy()  # Simpan salinan pertanyaan untuk grup ini
 
     # Inisialisasi answered_questions untuk setiap pengguna
     if 'answered_questions' not in context.user_data:
         context.user_data['answered_questions'] = []
-    
+
     # Pilih pertanyaan acak yang belum dijawab
-    available_questions = [q for q in questions if q not in context.user_data['answered_questions']]
+    available_questions = [q for q in group_questions[chat_id] if q not in context.user_data['answered_questions']]
     
     if available_questions:
         question_data = random.choice(available_questions)
@@ -64,15 +72,10 @@ def next_question(update: Update, context: CallbackContext) -> None:
     else:
         update.message.reply_text("Semua pertanyaan sudah dijawab! Ketik /poin untuk melihat skor Anda.")
 
-
-
 def answer(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
-    user_name = update.message.from_user.first_name  # Ambil nama pengguna
-
-    # Inisialisasi skor untuk pengguna baru
-    if user_id not in user_scores:
-        user_scores[user_id] = (user_name, 0)  # Simpan nama dan skor sebagai tuple
+    user_name = update.message.from_user.first_name
+    chat_id = update.message.chat.id  # Dapatkan ID grup
 
     question_data = context.user_data.get('current_question', None)
     if question_data is None:
@@ -120,7 +123,6 @@ def answer(update: Update, context: CallbackContext) -> None:
         update.message.reply_text("Jawaban tidak valid. Coba lagi.")
 
 def display_leaderboard():
-    global leaderboard
     # Mengurutkan berdasarkan skor dan mengambil 10 pemain teratas
     sorted_users = sorted(user_scores.items(), key=lambda x: x[1][1], reverse=True)[:10]
     leaderboard_message = "Papan Poin (Top 10) :\n" + "\n".join([f"{i + 1}. {user[1][0]}: {user[1][1]} poin" for i, user in enumerate(sorted_users)])

@@ -2,11 +2,10 @@ import requests
 import os
 import threading
 from flask import Flask, request
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 import logging
 import random
-import json
 
 # Inisialisasi Flask
 app = Flask(__name__)
@@ -20,9 +19,12 @@ TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token b
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
 
-# Menyimpan skor dan pertanyaan berdasarkan ID grup
-user_scores = {}
+
+# Menyimpan skor dan jawaban berdasarkan ID grup
+group_user_scores = {}
+group_user_answers = {}
 group_questions = {}
+correct_answers_status = {}
 
 # Ambil data dari Google Apps Script
 def fetch_questions():
@@ -45,11 +47,20 @@ def next_question(update: Update, context: CallbackContext) -> None:
     user_name = update.message.from_user.first_name
     chat_id = update.message.chat.id
 
-    if user_id not in user_scores:
-        user_scores[user_id] = (user_name, 0)
-
+    if chat_id not in group_user_scores:
+        group_user_scores[chat_id] = {}
+        
     if chat_id not in group_questions:
         group_questions[chat_id] = questions.copy()
+
+    if user_id not in group_user_scores[chat_id]:
+        group_user_scores[chat_id][user_id] = (user_name, 0)
+
+    if chat_id not in group_user_answers:
+        group_user_answers[chat_id] = {}
+
+    if user_id not in group_user_answers[chat_id]:
+        group_user_answers[chat_id][user_id] = []
 
     if 'answered_questions' not in context.user_data:
         context.user_data['answered_questions'] = []
@@ -66,6 +77,9 @@ def next_question(update: Update, context: CallbackContext) -> None:
         
         display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
         
+        # Inisialisasi status jawaban yang benar
+        correct_answers_status[question_data['question']] = [False] * len(question_data['answers'])
+
         update.message.reply_text(display_question)
     else:
         update.message.reply_text("Semua pertanyaan sudah dijawab! Ketik /poin untuk melihat skor Anda.")
@@ -84,27 +98,42 @@ def answer(update: Update, context: CallbackContext) -> None:
     answer_text = update.message.text.lower()
 
     if answer_text in map(str.lower, question_data["answers"]):
-        if 'answered' not in context.user_data:
-            context.user_data['answered'] = [False] * len(question_data["answers"])
+        correct_index = question_data["answers"].index(next(ans for ans in question_data["answers"] if ans.lower() == answer_text))
 
-        answer_index = question_data["answers"].index(next(ans for ans in question_data["answers"] if ans.lower() == answer_text))
-        if context.user_data['answered'][answer_index]:
+        # Memeriksa apakah jawaban sudah dijawab dan benar
+        if correct_answers_status[question_data['question']][correct_index]:
+            update.message.reply_text("Jawaban ini sudah dijawab dengan benar oleh pemain lain. Coba jawaban lain.")
+            return
+        
+        # Menyimpan jawaban
+        if chat_id not in group_user_answers:
+            group_user_answers[chat_id] = {}
+        if user_id not in group_user_answers[chat_id]:
+            group_user_answers[chat_id][user_id] = []
+
+        if answer_text in group_user_answers[chat_id][user_id]:
             update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
             return
         
-        current_score = user_scores[user_id][1] + 1
-        user_scores[user_id] = (user_name, current_score)
-        
-        context.user_data['answered'][answer_index] = True
-        
+        # Menambahkan jawaban ke penyimpanan
+        group_user_answers[chat_id][user_id].append(answer_text)
+
+        # Mengupdate skor pengguna
+        current_score = group_user_scores[chat_id].get(user_id, (user_name, 0))[1] + 1
+        group_user_scores[chat_id][user_id] = (user_name, current_score)
+
+        # Menandai jawaban sebagai benar
+        correct_answers_status[question_data['question']][correct_index] = True
+
         num_placeholders = len(question_data["answers"])
-        placeholders = ["_______" if not answered else f"{question_data['answers'][i]} (+1) [{user_name}]" for i, answered in enumerate(context.user_data['answered'])]
+        placeholders = ["_______" if not answered else f"{question_data['answers'][i]} (+1) [{user_name}]" for i, answered in enumerate(correct_answers_status[question_data['question']])]
         
         question_text = question_data["question"]
         display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
         
-        if all(context.user_data['answered']):
-            leaderboard_message = display_leaderboard()
+        # Jika semua jawaban sudah terjawab
+        if all(correct_answers_status[question_data['question']]):
+            leaderboard_message = display_leaderboard(chat_id)
             combined_message = f"{display_question}\n\n{leaderboard_message}\n\nGunakan perintah /poin untuk melihat detail poin kamu, Ketik /next untuk Pertanyaan Lainnya."
             update.message.reply_text(combined_message)
             context.user_data['answered_questions'].append(question_data)
@@ -114,15 +143,16 @@ def answer(update: Update, context: CallbackContext) -> None:
     else:
         update.message.reply_text("Jawaban tidak valid. Coba lagi.")
 
-def display_leaderboard():
-    sorted_users = sorted(user_scores.items(), key=lambda x: x[1][1], reverse=True)[:10]
+def display_leaderboard(chat_id):
+    sorted_users = sorted(group_user_scores[chat_id].items(), key=lambda x: x[1][1], reverse=True)[:10]
     leaderboard_message = "Papan Poin (Top 10):\n" + "\n".join([f"{i + 1}. {user[1][0]}: {user[1][1]} poin" for i, user in enumerate(sorted_users)])
     return leaderboard_message
 
 def points(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
-    user_data = user_scores.get(user_id, (None, 0))
-    score = user_data[1]
+    user_name = update.message.from_user.first_name
+    chat_id = update.message.chat.id
+    score = group_user_scores.get(chat_id, {}).get(user_id, (user_name, 0))[1]
     update.message.reply_text(f"Skor Anda: {score}")
 
 @app.route('/webhook', methods=['POST'])

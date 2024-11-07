@@ -62,9 +62,10 @@ def next_question(update: Update, context: CallbackContext) -> None:
 
 def answer(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
+    user_name = update.message.from_user.first_name  # Ambil nama pengguna
     if user_id not in user_scores:
-        user_scores[user_id] = 0
-    
+        user_scores[user_id] = (user_name, 0)  # Simpan nama dan skor
+
     question_data = context.user_data.get('current_question', None)
     if question_data:
         answer_text = update.message.text.lower()
@@ -73,47 +74,54 @@ def answer(update: Update, context: CallbackContext) -> None:
         if answer_text in question_data["answers"]:
             # Cek apakah jawaban sudah dijawab
             if 'answered' not in context.user_data:
-                context.user_data['answered'] = [False] * len(question_data["answers"])
-            
+                context.user_data['answered'] = [False] * len(question_data["answers"]message
+                    
             answer_index = question_data["answers"].index(answer_text)
             if context.user_data['answered'][answer_index]:
-                update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
+                #update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
                 return
             
-            user_scores[user_id] += 1  # Setiap jawaban benar mendapatkan 1 poin
+            # Update skor
+            current_score = user_scores[user_id][1] + 1  # Ambil skor yang ada dan tambahkan 1
+            user_scores[user_id] = (user_name, current_score)  # Update dengan nama dan skor
             
             # Ganti jawaban yang benar di tampilan
             context.user_data['answered'][answer_index] = True  # Tandai jawaban sebagai sudah terisi
             
             num_placeholders = len(question_data["answers"])
-            placeholders = ["_______" if not answered else f"{question_data['answers'][i]} (+1) [{update.message.from_user.first_name}]" for i, answered in enumerate(context.user_data['answered'])]
+            placeholders = ["_______" if not answered else f"{question_data['answers'][i]} (+1) [{user_name}]" for i, answered in enumerate(context.user_data['answered'])]
             
             # Menampilkan kembali pertanyaan dengan jawaban yang sudah terisi
             question_text = question_data["question"]
             display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
-            update.message.reply_text(display_question)
             
             # Cek jika semua jawaban sudah terisi
             if all(context.user_data['answered']):
-                # Tampilkan papan poin dan pesan akhir
-                display_leaderboard(update)
+                # Gabungkan semua informasi dalam satu pesan
+                leaderboard_message = display_leaderboard()  # Dapatkan papan poin
+                combined_message = f"{display_question}\n\n{leaderboard_message}\n\nGunakan perintah /poin untuk melihat detail poin kamu, Ketik /mulai untuk Pertanyaan Lainnya."
+                update.message.reply_text(combined_message)
                 context.user_data['answered_questions'].append(question_data)  # Tandai pertanyaan sebagai dijawab
                 next_question(update, context)
-        else:
-            update.message.reply_text("Jawaban tidak valid. Coba lagi.")
+            else:
+                update.message.reply_text(display_question)        
     else:
         update.message.reply_text("Tidak ada pertanyaan yang sedang aktif.")
+
+def display_leaderboard():
+    global leaderboard
+    # Mengurutkan berdasarkan skor dan mengambil 10 pemain teratas
+    sorted_users = sorted(user_scores.items(), key=lambda x: x[1][1], reverse=True)[:10]
+    leaderboard_message = "Papan Poin (Top 10) :\n" + "\n".join([f"{i + 1}. {user[1][0]}: {user[1][1]} poin" for i, user in enumerate(sorted_users)])
+    return leaderboard_message
+
+
 
 def points(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     score = user_scores.get(user_id, 0)
     update.message.reply_text(f"Skor Anda: {score}")
 
-def display_leaderboard(update):
-    global leaderboard
-    leaderboard = sorted(user_scores.items(), key=lambda x: x[1], reverse=True)[:10]  # Ambil 10 pemain teratas
-    leaderboard_message = "Papan Poin (Top 10) :\n" + "\n".join([f"{i + 1}. {user[0]}: {user[1]} poin" for i, user in enumerate(leaderboard)])
-    update.message.reply_text(leaderboard_message + "\n\nGunakan perintah /poin untuk melihat detail poin kamu, Ketik /mulai untuk Pertanyaan Lainnya.")
 
 @app.route('/webhook', methods=['POST'])
 def webhook():

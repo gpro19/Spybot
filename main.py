@@ -37,6 +37,23 @@ def fetch_questions():
 questions = fetch_questions()
 
 
+# Fungsi untuk menyimpan skor ke Google Sheets
+def record_score(player_id, player_name, score):
+    payload = {
+        'playerId': player_id,
+        'playerName': player_name,
+        'score': score
+    }
+    
+    try:
+        response = requests.post("https://script.google.com/macros/s/AKfycbwKfk6UoHCKdbG8YQXqRXBH8UbDQ6fSWSOkKMXfRMTpuTZ8KZLYz_bMC0DP6JTYqFMqDQ/exec", json=payload)
+        response.raise_for_status()
+        logger.info(f"Score recorded for {player_name}: {score}")
+    except Exception as e:
+        logger.error(f"Failed to record score: {e}")
+
+
+
 
 # Fungsi untuk memulai permainan
 def play_game(update: Update, context: CallbackContext) -> None:
@@ -68,6 +85,7 @@ def play_game(update: Update, context: CallbackContext) -> None:
     # Kirim pertanyaan ke grup
     question_text = f"{question['question']}\n" + "\n".join([f"{i + 1}. {answers_record[chat_id][i]}" for i in range(len(question["answers"]))])
     update.message.reply_text(question_text)
+
 
 # Fungsi untuk memproses jawaban
 def answer(update: Update, context: CallbackContext) -> None:
@@ -115,6 +133,9 @@ def answer(update: Update, context: CallbackContext) -> None:
     
     user_data[chat_id]["score"][user_id]["poin"] += 1  # Tambahkan poin
 
+    # Simpan skor ke Google Sheets
+    record_score(player_id=user_id, player_name=user_name, score=user_data[chat_id]["score"][user_id]["poin"])
+    
     # Simpan jawaban ke dalam answers_record pada posisi yang sesuai
     answers_record[chat_id][correct_index] = f"{answers[correct_index]} (+{user_data[chat_id]['score'][user_id]['poin']}) [{user_name}]"
 

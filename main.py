@@ -19,7 +19,6 @@ TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token b
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
 
-
 # Menyimpan skor dan pertanyaan berdasarkan ID grup
 user_scores = {}
 group_data = {}  # Menyimpan data grup termasuk pertanyaan dan jawaban
@@ -79,32 +78,41 @@ def answer(update: Update, context: CallbackContext) -> None:
     # Ambil data grup berdasarkan chat_id
     group_info = group_data.get(chat_id, None)
     
-    if group_info is None or group_info['current_question'] is None:
+    if group_info is None:
         update.message.reply_text("Tidak ada pertanyaan yang sedang aktif. Silakan ketik /next untuk mendapatkan pertanyaan.")
         return
 
-    question_data = group_info['current_question']
+    # Jika tidak ada pertanyaan aktif, coba gunakan pertanyaan terakhir yang ada
+    current_question = group_info['current_question']
+    if current_question is None:
+        if group_info['answered_questions']:
+            current_question = group_info['answered_questions'][-1]  # Ambil pertanyaan terakhir yang sudah dijawab
+        else:
+            update.message.reply_text("Tidak ada pertanyaan yang sedang aktif. Silakan ketik /next untuk mendapatkan pertanyaan.")
+            return
+
     answer_text = update.message.text.lower().strip()  # Normalisasi jawaban
     
-    logger.info(f"User answer: {answer_text}, Valid answers: {question_data['answers']}")
+    logger.info(f"User answer: {answer_text}, Valid answers: {current_question['answers']}")
     
-    if answer_text in question_data["answers"]:
+    if answer_text in current_question["answers"]:
         # Update skor
         current_score = group_info['scores'][user_id][1] + 1  
         group_info['scores'][user_id] = (user_name, current_score)  
         
         # Tandai jawaban sebagai sudah diberikan
-        group_info['answered_questions'].append(question_data)
+        if current_question not in group_info['answered_questions']:
+            group_info['answered_questions'].append(current_question)
         
         # Menampilkan hasil
-        display_results(update, group_info, question_data)
+        display_results(update, group_info, current_question)
         next_question(update, context)  # Mengambil pertanyaan berikutnya
     else:
         update.message.reply_text("Jawaban tidak valid. Coba lagi.")
 
 def display_results(update, group_info, question_data):
     num_placeholders = len(question_data["answers"])
-    placeholders = ["_______" if q not in group_info['answered_questions'] else f"{q['answer']} (+1)" for q in group_info['answered_questions']]
+    placeholders = ["_______" if question_data not in group_info['answered_questions'] else f"{answer} (+1)" for answer in question_data["answers"]]
     
     question_text = question_data["question"]
     display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])

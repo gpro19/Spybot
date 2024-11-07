@@ -19,9 +19,10 @@ TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token b
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
 
+
 # Menyimpan skor dan pertanyaan berdasarkan ID grup
 user_scores = {}
-group_questions = {}
+group_data = {}  # Menyimpan data grup termasuk pertanyaan dan jawaban
 
 # Ambil data dari Google Apps Script
 def fetch_questions():
@@ -43,23 +44,23 @@ def next_question(update: Update, context: CallbackContext) -> None:
     user_name = update.message.from_user.first_name
     chat_id = update.message.chat.id  # Dapatkan ID grup
 
-    if user_id not in user_scores:
-        user_scores[user_id] = (user_name, 0)  # Simpan nama dan skor awal
+    if chat_id not in group_data:
+        group_data[chat_id] = {
+            'scores': {},
+            'questions': questions.copy(),
+            'current_question': None,
+            'answered_questions': []
+        }
 
-    # Inisialisasi pertanyaan untuk grup jika belum ada
-    if chat_id not in group_questions:
-        group_questions[chat_id] = questions.copy()  # Simpan salinan pertanyaan untuk grup ini
-
-    # Inisialisasi answered_questions untuk setiap pengguna
-    if 'answered_questions' not in context.user_data:
-        context.user_data['answered_questions'] = []
+    if user_id not in group_data[chat_id]['scores']:
+        group_data[chat_id]['scores'][user_id] = (user_name, 0)  # Simpan nama dan skor awal
 
     # Pilih pertanyaan acak yang belum dijawab
-    available_questions = [q for q in group_questions[chat_id] if q not in context.user_data['answered_questions']]
+    available_questions = [q for q in group_data[chat_id]['questions'] if q not in group_data[chat_id]['answered_questions']]
     
     if available_questions:
         question_data = random.choice(available_questions)
-        context.user_data['current_question'] = question_data  # Simpan pertanyaan yang sedang aktif
+        group_data[chat_id]['current_question'] = question_data  # Simpan pertanyaan yang sedang aktif
         question_text = question_data["question"]
         
         num_placeholders = len(question_data["answers"])
@@ -75,66 +76,52 @@ def answer(update: Update, context: CallbackContext) -> None:
     user_name = update.message.from_user.first_name
     chat_id = update.message.chat.id  # Dapatkan ID grup
 
-    # Ambil pertanyaan yang sedang aktif
-    question_data = context.user_data.get('current_question', None)
+    # Ambil data grup berdasarkan chat_id
+    group_info = group_data.get(chat_id, None)
+    
+    if group_info is None or group_info['current_question'] is None:
+        update.message.reply_text("Tidak ada pertanyaan yang sedang aktif. Silakan ketik /next untuk mendapatkan pertanyaan.")
+        return
 
-    # Jika tidak ada pertanyaan aktif, kita bisa menggunakan pertanyaan terakhir yang dikeluarkan
-    if question_data is None:
-        # Coba ambil pertanyaan dari answered_questions jika ada
-        if 'answered_questions' not in context.user_data:
-            context.user_data['answered_questions'] = []  # Inisialisasi jika belum ada
-        
-        if context.user_data['answered_questions']:
-            last_question = context.user_data['answered_questions'][-1]
-            question_data = last_question  # Ambil pertanyaan terakhir yang dijawab
-        else:
-            update.message.reply_text("Tidak ada pertanyaan yang sedang aktif. Silakan ketik /next untuk mendapatkan pertanyaan.")
-            return
-
-    answer_text = update.message.text.lower()
+    question_data = group_info['current_question']
+    answer_text = update.message.text.lower().strip()  # Normalisasi jawaban
+    
+    logger.info(f"User answer: {answer_text}, Valid answers: {question_data['answers']}")
     
     if answer_text in question_data["answers"]:
-        if 'answered' not in context.user_data:
-            context.user_data['answered'] = [False] * len(question_data["answers"])  
+        # Update skor
+        current_score = group_info['scores'][user_id][1] + 1  
+        group_info['scores'][user_id] = (user_name, current_score)  
         
-        answer_index = question_data["answers"].index(answer_text)
-        if context.user_data['answered'][answer_index]:
-            update.message.reply_text("Jawaban ini sudah diberikan sebelumnya. Coba jawaban lain.")
-            return
+        # Tandai jawaban sebagai sudah diberikan
+        group_info['answered_questions'].append(question_data)
         
-        current_score = user_scores[user_id][1] + 1  
-        user_scores[user_id] = (user_name, current_score)  
-        
-        context.user_data['answered'][answer_index] = True  
-        
-        num_placeholders = len(question_data["answers"])
-        placeholders = ["_______" if not answered else f"{question_data['answers'][i]} (+1) [{user_name}]" for i, answered in enumerate(context.user_data['answered'])]
-        
-        question_text = question_data["question"]
-        display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
-        
-        if all(context.user_data['answered']):
-            leaderboard_message = display_leaderboard()  
-            combined_message = f"{display_question}\n\n{leaderboard_message}\n\nGunakan perintah /poin untuk melihat detail poin kamu, Ketik /mulai untuk Pertanyaan Lainnya."
-            update.message.reply_text(combined_message)
-            context.user_data['answered_questions'].append(question_data)  
-            next_question(update, context)
-        else:
-            update.message.reply_text(display_question)        
+        # Menampilkan hasil
+        display_results(update, group_info, question_data)
+        next_question(update, context)  # Mengambil pertanyaan berikutnya
     else:
         update.message.reply_text("Jawaban tidak valid. Coba lagi.")
 
-def display_leaderboard():
-    # Mengurutkan berdasarkan skor dan mengambil 10 pemain teratas
-    sorted_users = sorted(user_scores.items(), key=lambda x: x[1][1], reverse=True)[:10]
-    leaderboard_message = "Papan Poin (Top 10) :\n" + "\n".join([f"{i + 1}. {user[1][0]}: {user[1][1]} poin" for i, user in enumerate(sorted_users)])
-    return leaderboard_message
+def display_results(update, group_info, question_data):
+    num_placeholders = len(question_data["answers"])
+    placeholders = ["_______" if q not in group_info['answered_questions'] else f"{q['answer']} (+1)" for q in group_info['answered_questions']]
+    
+    question_text = question_data["question"]
+    display_question = f"{question_text}\n" + "\n".join([f"{i + 1}. {placeholders[i]}" for i in range(num_placeholders)])
+    
+    update.message.reply_text(display_question)
 
 def points(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
-    user_data = user_scores.get(user_id, (None, 0))  # Ambil tuple, default ke (None, 0)
-    score = user_data[1]  # Ambil skor dari tuple
-    update.message.reply_text(f"Skor Anda: {score}")
+    chat_id = update.message.chat.id  # Dapatkan ID grup
+
+    group_info = group_data.get(chat_id, None)
+    if group_info:
+        user_data = group_info['scores'].get(user_id, (None, 0))  # Ambil tuple, default ke (None, 0)
+        score = user_data[1]  # Ambil skor dari tuple
+        update.message.reply_text(f"Skor Anda: {score}")
+    else:
+        update.message.reply_text("Tidak ada data skor untuk grup ini.")
 
 @app.route('/webhook', methods=['POST'])
 def webhook():

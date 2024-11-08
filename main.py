@@ -9,6 +9,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 from pymongo import MongoClient
 
 from start import start_game  # Mengimpor fungsi start_game dari start.py
+from game_stats import player_stats, top_players
 
 # Inisialisasi Flask
 app = Flask(__name__)
@@ -318,6 +319,8 @@ def main():
     dp.add_handler(CommandHandler("score", view_score))  # Tambahkan handler untuk melihat skor
     dp.add_handler(CommandHandler("nyerah", give_up))
     dp.add_handler(CommandHandler("next", next_question))  # Tambahkan handler untuk pertanyaan berikutnya
+    dp.add_handler(CommandHandler("stats", player_stats))  # Menambahkan handler untuk /stats
+    dp.add_handler(CommandHandler("top", top_players))  # Menambahkan handler untuk /top
     
     updater.start_polling()
 

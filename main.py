@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from pymongo import MongoClient
 
-from start import start_game  # Mengimpor fungsi start_game dari start.py
+from start import start_game, new_chat_members  # Mengimpor fungsi start_game dari start.py
 from game_stats import player_stats, top_players
 
 # Inisialisasi Flask
@@ -321,6 +321,8 @@ def main():
     dp.add_handler(CommandHandler("next", next_question))  # Tambahkan handler untuk pertanyaan berikutnya
     dp.add_handler(CommandHandler("stats", player_stats))  # Menambahkan handler untuk /stats
     dp.add_handler(CommandHandler("top", top_players))  # Menambahkan handler untuk /top
+    dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, new_chat_members))
+
     
     updater.start_polling()
 

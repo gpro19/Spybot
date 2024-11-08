@@ -100,6 +100,13 @@ def send_game_rules(update: Update, context: CallbackContext) -> None:
     update.message.reply_html(rules_message)
 
 
+def top_grup(update: Update, context: CallbackContext) -> None:
+    # Pesan yang akan dikirimkan kepada pengguna
+    message = "🚧 Maaf, perintah ini belum tersedia atau sedang dalam pengembangan. Silakan coba perintah lain."
+    
+    # Mengirim pesan kepada pengguna
+    update.message.reply_html(message)
+    
 
 def send_help_info(update: Update, context: CallbackContext) -> None:
     # Pesan bantuan yang akan dikirim

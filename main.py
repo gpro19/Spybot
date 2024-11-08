@@ -384,8 +384,8 @@ def main():
     load_questions_from_file()
     updater = Updater(TOKEN)
 
-    updater.start_webhook(listen='0.0.0.0', port=8000, url_path='webhook')
-    updater.bot.setWebhook('https://fair-berthe-grng-57915732.koyeb.app/webhook')  # Ganti dengan domain Anda
+    #updater.start_webhook(listen='0.0.0.0', port=8000, url_path='webhook')
+    #updater.bot.setWebhook('https://fair-berthe-grng-57915732.koyeb.app/webhook')  # Ganti dengan domain Anda
 
     
     dp = updater.dispatcher
@@ -406,7 +406,7 @@ def main():
     
 
     
-    #updater.start_polling()
+    updater.start_polling()
 
     # Jalankan Flask pada thread terpisah
     flask_thread = threading.Thread(target=run_flask)

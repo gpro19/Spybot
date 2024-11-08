@@ -19,8 +19,9 @@ logger = logging.getLogger(__name__)
 TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token bot Telegram Anda
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
+
 # Inisialisasi MongoDB
-mongo_client = MongoClient('mongodb+srv://ilham:galeh@cluster0.bsr41.mongodb.net/?retryWrites=true&w=majority')
+mongo_client = MongoClient('mongodb+srv://ilham:galeh@cluster0.bsr41.mongodb.net/?retryWrites=true&w=majority')  # Ganti dengan URI MongoDB Anda jika perlu
 db = mongo_client['game_db']  # Ganti dengan nama database yang diinginkan
 users_collection = db['users']  # Koleksi untuk menyimpan data pengguna
 
@@ -40,6 +41,7 @@ questions = fetch_questions()
 # Fungsi untuk menyimpan skor ke Google Sheets
 def add_score(chat_id):
     user_data = users_collection.find_one({"chat_id": chat_id})
+
     if not user_data or "score" not in user_data:
         print("Tidak ada skor untuk chat_id ini.")
         return  
@@ -59,7 +61,6 @@ def add_score(chat_id):
         for user_id, score in scores.items()
     ]
 
-    # Jika score_message kosong, tidak ada yang perlu dikirim
     if not score_message:
         print("Tidak ada skor untuk dikirim.")
         return
@@ -79,20 +80,19 @@ def add_score(chat_id):
 
     except Exception as e:
         print(f"Error: {e}")
-        
-        
-        
+
+
 
 # Fungsi untuk memulai permainan
 def play_game(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
 
-    # Cek apakah game sudah dimulai
     user_data = users_collection.find_one({"chat_id": chat_id})
+
+    # Cek apakah game sudah dimulai
     if user_data and user_data.get("current_question") is not None:
         current_question = user_data["current_question"]
-        question_text = f"{current_question['question']}\n" + "\n".join([f"{i + 1}. {current_question['answers'][i]}" for i in range(len(current_question["answers"]))])
-    
+        question_text = f"{current_question['question']}\n" + "\n".join([f"{i + 1}. {user_data['answers_record'][i]}" for i in range(len(current_question["answers"]))])
         full_message = f"{question_text}\n\nGame sudah dimulai, Ketik /next untuk berganti soal permainan."
         update.message.reply_text(full_message)
         return
@@ -102,7 +102,9 @@ def play_game(update: Update, context: CallbackContext) -> None:
         users_collection.insert_one({
             "chat_id": chat_id,
             "current_question": None,
-            "score": {}
+            "score": {},
+            "correct_answers_status": [],
+            "answers_record": []
         })
 
     # Pilih pertanyaan secara acak
@@ -111,16 +113,14 @@ def play_game(update: Update, context: CallbackContext) -> None:
         {"chat_id": chat_id},
         {"$set": {
             "current_question": question,
-            "correct_answers_status": [False] * len(question["answers"]),
-            "answers_record": ["_______"] * len(question["answers"]),
+            "correct_answers_status": [False] * len(question["answers"]),  # Inisialisasi status jawaban benar
+            "answers_record": ["_______"] * len(question["answers"])  # Inisialisasi penyimpanan jawaban yang sudah diberikan
         }}
     )
 
     # Kirim pertanyaan ke grup
     question_text = f"{question['question']}\n" + "\n".join(["_______" for _ in question["answers"]])
     update.message.reply_text(question_text)
-
-
 
 # Fungsi untuk memproses jawaban
 def answer(update: Update, context: CallbackContext) -> None:
@@ -132,19 +132,21 @@ def answer(update: Update, context: CallbackContext) -> None:
     user_data = users_collection.find_one({"chat_id": chat_id})
 
     # Cek apakah permainan sudah dimulai
-    if user_data is None:        
+    if user_data is None:
+        update.message.reply_text("Belum ada permainan yang dimulai. Ketik /play untuk memulai.")
         return
 
     current_question = user_data.get("current_question")
 
     # Cek apakah ada pertanyaan aktif
     if current_question is None:
+        update.message.reply_text("Tidak ada pertanyaan aktif.")
         return
 
     answers = current_question["answers"]
-    correct_answer_found = False
-    correct_index = -1
 
+    # Mencari jawaban yang benar
+    correct_answer_found = False
     for i, answer in enumerate(answers):
         if answer_text == answer.lower():  # Membandingkan dengan lowercase
             correct_index = i
@@ -167,7 +169,7 @@ def answer(update: Update, context: CallbackContext) -> None:
         user_data["score"][str(user_id)] = {"nama": user_name, "poin": 0}
     
     user_data["score"][str(user_id)]["poin"] += 1  # Tambahkan poin
-
+    
     # Simpan jawaban ke dalam answers_record pada posisi yang sesuai
     user_data["answers_record"][correct_index] = f"{answers[correct_index]} (+1) [{user_name}]"
 
@@ -178,14 +180,16 @@ def answer(update: Update, context: CallbackContext) -> None:
 
     if all(user_data["correct_answers_status"]):
         response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."        
+    
+        # Simpan skor ke Google Sheets
         add_score(chat_id)
+        
         users_collection.delete_one({"chat_id": chat_id})  # Hapus data game setelah semua terjawab
         
     else:
         users_collection.update_one({"chat_id": chat_id}, {"$set": user_data})
 
     update.message.reply_text(response_message)
-
 
 # Fungsi untuk melihat skor pemain
 def view_score(update: Update, context: CallbackContext) -> None:
@@ -205,38 +209,42 @@ def view_score(update: Update, context: CallbackContext) -> None:
 
     update.message.reply_text(score_message)
 
-
 # Fungsi untuk menyerah pada pertanyaan
 def give_up(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
     user_data = users_collection.find_one({"chat_id": chat_id})
 
     # Cek apakah permainan sudah dimulai
-    if user_data is None or user_data.get("current_question") is None:
+    if user_data is None or user_data["current_question"] is None:
         update.message.reply_text("Game belum dimulai. Ketik /play untuk memulai permainan.")
         return
 
     current_question = user_data["current_question"]
+
+    # Mencari jawaban yang belum dijawab
     answers = current_question["answers"]
     unanswered_answers = [i for i, answered in enumerate(user_data["correct_answers_status"]) if not answered]
 
     if unanswered_answers:
+        # Pilih satu jawaban yang belum dijawab secara acak
         random_index = random.choice(unanswered_answers)
         answer_to_show = answers[random_index]
         user_name = update.message.from_user.first_name
         
+        # Tampilkan jawaban yang belum dijawab
         response_message = f"{user_name} menyerah pada pertanyaan:\n\n{current_question['question']}\n"
         for i in range(len(answers)):
             if i == random_index:
-                response_message += f"{i + 1}. {answer_to_show} [🤖 bot]\n"
+                response_message += f"{i + 1}. {answer_to_show} [🤖 bot]\n"  # Menambahkan nomor
             else:
-                response_message += f"{i + 1}. {user_data['answers_record'][i]}\n"
+                response_message += f"{i + 1}. {user_data['answers_record'][i]}\n"  # Menambahkan nomor
         
         response_message += "\nKetik /play untuk pertanyaan lain."
         update.message.reply_text(response_message)
 
         add_score(chat_id)
-        users_collection.delete_one({"chat_id": chat_id})  # Hapus data game
+        
+        users_collection.delete_one({"chat_id": chat_id})  # Hapus data game setelah semua terjawab
         
     else:
         update.message.reply_text("Semua jawaban sudah dijawab.")
@@ -247,7 +255,7 @@ def next_question(update: Update, context: CallbackContext) -> None:
     user_data = users_collection.find_one({"chat_id": chat_id})
 
     # Cek apakah permainan sudah dimulai
-    if user_data is None or user_data.get("current_question") is None:
+    if user_data is None or user_data["current_question"] is None:
         update.message.reply_text("Game belum dimulai. Ketik /play untuk memulai permainan.")
         return
 
@@ -261,8 +269,8 @@ def next_question(update: Update, context: CallbackContext) -> None:
         {"chat_id": chat_id},
         {"$set": {
             "current_question": question,
-            "correct_answers_status": [False] * len(question["answers"]),
-            "answers_record": ["_______"] * len(question["answers"]),
+            "correct_answers_status": [False] * len(question["answers"]),  # Inisialisasi status jawaban benar
+            "answers_record": ["_______"] * len(question["answers"]),  # Inisialisasi penyimpanan jawaban yang sudah diberikan
         }}
     )
 
@@ -276,6 +284,7 @@ def webhook():
     logger.info(f"Received update: {update}")
 
     if "message" in update and "text" in update["message"]:
+        # Panggil fungsi yang memproses pesan
         handle_message(update)
 
     return '', 200
@@ -289,9 +298,9 @@ def main():
 
     dp.add_handler(CommandHandler("play", play_game))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
-    dp.add_handler(CommandHandler("score", view_score))
+    dp.add_handler(CommandHandler("score", view_score))  # Tambahkan handler untuk melihat skor
     dp.add_handler(CommandHandler("nyerah", give_up))
-    dp.add_handler(CommandHandler("next", next_question))
+    dp.add_handler(CommandHandler("next", next_question))  # Tambahkan handler untuk pertanyaan berikutnya
     
     updater.start_polling()
 

@@ -45,11 +45,11 @@ def add_score(chat_id):
     if not user_data or "score" not in user_data:
         print("Tidak ada skor untuk chat_id ini.")
         return  
-
-    scores = user_data["score"]
     
+    scores = user_data["score"]
+    logger.info(scores)
     if not scores:
-        print("Skor kosong untuk chat_id ini.")
+        logger.info("Skor kosong untuk chat_id ini.")
         return
         
     score_message = [
@@ -62,7 +62,7 @@ def add_score(chat_id):
     ]
 
     if not score_message:
-        print("Tidak ada skor untuk dikirim.")
+        logger.info("Tidak ada skor untuk dikirim.")
         return
 
     # Mengirim data ke Google Apps Script

@@ -5,7 +5,7 @@ import logging
 import random
 import threading
 from flask import Flask, request
-from telegram import Update
+from telegram import Update, Chat
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from pymongo import MongoClient
 
@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # URL Google Apps Script untuk mengambil pertanyaan
-TOKEN = '5980732812:AAFXI4PosWOGjqS55qp54HiQwOKHcBeY9tA'  # Ganti dengan token bot Telegram Anda
+TOKEN = '7386179157:AAHcq5JrAxYjlTcULZlbvXR1YX5ygfvyrYY'  # Ganti dengan token bot Telegram Anda
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
 
@@ -65,10 +65,9 @@ def fetch_questions():
 # Fungsi untuk menyimpan skor ke Google Sheets
 def add_score(scores):
         
-    #logger.info(scores)
-    
+
     if not scores:
-        #logger.info("Skor kosong untuk chat_id ini.")
+        logger.info("Skor kosong untuk chat_id ini.")
         return
         
     score_message = [
@@ -93,9 +92,9 @@ def add_score(scores):
         )
 
         if response.status_code == 200:
-            logger.info("Data berhasil dikirim!")
+            print("Data berhasil dikirim!")
         else:
-            logger.info("Terjadi kesalahan saat mengirim data.")
+            print("Terjadi kesalahan saat mengirim data.")
 
     except Exception as e:
         print(f"Error: {e}")

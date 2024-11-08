@@ -72,7 +72,7 @@ def top_players(update: Update, context: CallbackContext) -> None:
             else:
                 medal = '▫️'  # Simbol untuk peringkat lainnya
 
-            pesan += f'<b>{medal} {i + 1}.</b> <a href="{urlku}">{user_name}</a> - <b>{user_score}</b> Points\n'  # Format pesan
+            pesan += f'<b>{medal} {i + 1}.</b> <a href="{urlku}">{user_name}</a> - <b>{user_score}</b> Pts\n'  # Format pesan
 
         # Mengirim pesan ke pengguna
         update.message.reply_text(pesan, parse_mode='HTML', disable_web_page_preview=True)

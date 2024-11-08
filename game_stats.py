@@ -2,6 +2,11 @@ import requests
 from telegram import Update
 from telegram.ext import CallbackContext
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # URL Google Apps Script untuk mengambil data pemain
 STATS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDqdrHOTxS9cj8dTEHI0alLQHxQKZ4McDPrLBjh_IN3S4b23DrLsEm7OBx7DnykMgg/exec'  # Ganti dengan URL Anda
 

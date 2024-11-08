@@ -379,8 +379,15 @@ def run_flask():
     app.run(host='0.0.0.0', port=8000)
 
 def main():
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+    
     load_questions_from_file()
     updater = Updater(TOKEN)
+
+    updater.start_webhook(listen='0.0.0.0', port=8000, url_path='webhook')
+    updater.bot.setWebhook('https://fair-berthe-grng-57915732.koyeb.app/webhook')  # Ganti dengan domain Anda
+
+    
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start_game, Filters.chat_type.private))
@@ -399,11 +406,14 @@ def main():
     
 
     
-    updater.start_polling()
+    #updater.start_polling()
 
     # Jalankan Flask pada thread terpisah
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
+    # Jalankan updater
+    updater.idle()
+    
 if __name__ == '__main__':
     main()

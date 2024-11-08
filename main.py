@@ -129,17 +129,17 @@ def play_game(update: Update, context: CallbackContext) -> None:
      # ID grup yang diizinkan
     #allowed_group_id = -1001651683956
 
-    if update.effective_chat.id != allowed_group_id:
-        return update.message.reply_html('<i>Bot hanya dapat digunakan di support grup</i>')
+    #if update.effective_chat.id != allowed_group_id:
+        #return update.message.reply_html('<i>Bot hanya dapat digunakan di support grup</i>')
 
     
     if update.effective_chat.type == 'private':
         return update.message.reply_html('<i>Bot hanya dapat dimainkan pada grup</i>')
 
     # Cek apakah bot adalah administrator
-    #if not is_bot_admin(update, context):
-        #send_admin_alert(update, context)
-        #return
+    if not is_bot_admin(update, context):
+        send_admin_alert(update, context)
+        return
         
     user_data = users_collection.find_one({"chat_id": chat_id})
     

@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Menjalankan bot menggunakan Gunicorn
-CMD ["gunicorn", "-w", "2", "-k", "gevent", "-b", "0.0.0.0:8000", "main:app"]
+CMD ["python", "main.py"]

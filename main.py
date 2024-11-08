@@ -119,7 +119,7 @@ def play_game(update: Update, context: CallbackContext) -> None:
     )
 
     # Kirim pertanyaan ke grup
-    question_text = f"{question['question']}\n" + "\n".join(["_______" for _ in question["answers"]])
+    question_text = f"{question['question']}\n" + "\n".join([f"{i + 1}. _______" for i in range(len(question['answers']))])
     update.message.reply_text(question_text)
 
 # Fungsi untuk memproses jawaban
@@ -261,8 +261,18 @@ def next_question(update: Update, context: CallbackContext) -> None:
 
     # Hapus data pertanyaan sebelumnya
     add_score(chat_id)
-    users_collection.delete_one({"chat_id": chat_id})
+    #users_collection.delete_one({"chat_id": chat_id})
 
+    
+    if user_data is None:
+        users_collection.insert_one({
+            "chat_id": chat_id,
+            "current_question": None,
+            "score": {},
+            "correct_answers_status": [],
+            "answers_record": []
+        })
+        
     # Pilih pertanyaan baru
     question = random.choice(questions)
     users_collection.update_one(
@@ -275,7 +285,7 @@ def next_question(update: Update, context: CallbackContext) -> None:
     )
 
     # Kirim pertanyaan ke grup
-    question_text = f"{question['question']}\n" + "\n".join(["_______" for _ in question["answers"]])
+    question_text = f"{question['question']}\n" + "\n".join([f"{i + 1}. _______" for i in range(len(question["answers"]))])
     update.message.reply_text(question_text)
 
 @app.route('/webhook', methods=['POST'])

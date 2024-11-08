@@ -13,5 +13,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Menyalin semua file yang ada di direktori saat ini ke dalam container
 COPY . .
 
-# Menjalankan bot menggunakan Gunicorn
+# Menjalankan bot
 CMD ["python", "main.py"]

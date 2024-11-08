@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from pymongo import MongoClient
 
-from start import start_game, new_chat_members, send_donation_info, send_help_info, send_game_rules  # Mengimpor fungsi dari start.py
+from start import start_game, new_chat_members, send_donation_info, send_help_info, send_game_rules, top_grup  # Mengimpor fungsi dari start.py
 from game_stats import player_stats, top_players
 
 # Inisialisasi Flask
@@ -28,7 +28,28 @@ mongo_client = MongoClient('mongodb+srv://ilham:galeh@cluster0.bsr41.mongodb.net
 db = mongo_client['game_db']  # Ganti dengan nama database yang diinginkan
 users_collection = db['users']  # Koleksi untuk menyimpan data pengguna
 
-# Ambil data dari Google Apps Script
+# Inisialisasi variabel untuk menyimpan pertanyaan
+questions = []
+
+# Nama file lokal untuk menyimpan pertanyaan
+QUESTIONS_FILE = 'questions.json'
+
+# Fungsi untuk menyimpan pertanyaan ke file lokal
+def save_questions_to_file(questions):
+    with open(QUESTIONS_FILE, 'w') as f:
+        json.dump(questions, f)
+
+# Fungsi untuk memuat pertanyaan dari file lokal
+def load_questions_from_file():
+    global questions
+    if os.path.exists(QUESTIONS_FILE):
+        with open(QUESTIONS_FILE, 'r') as f:
+            questions = json.load(f)
+    else:
+        questions = fetch_questions()  # Ambil dari Google Apps Script jika file tidak ada
+        save_questions_to_file(questions)  # Simpan ke file lokal
+
+# Fungsi untuk mengambil data pertanyaan dan jawaban
 def fetch_questions():
     try:
         response = requests.get(GOOGLE_SCRIPT_URL)
@@ -37,9 +58,6 @@ def fetch_questions():
     except Exception as e:
         logger.error(f"Failed to fetch questions: {e}")
         return []
-
-# Mengambil data pertanyaan dan jawaban
-questions = fetch_questions()
 
 
 
@@ -351,6 +369,7 @@ def run_flask():
     app.run(host='0.0.0.0', port=8000)
 
 def main():
+    load_questions_from_file()
     updater = Updater(TOKEN)
     dp = updater.dispatcher
 
@@ -366,6 +385,7 @@ def main():
     dp.add_handler(CommandHandler('donasi', send_donation_info))
     dp.add_handler(CommandHandler('help', send_help_info))
     dp.add_handler(CommandHandler('peraturan', send_game_rules))
+    dp.add_handler(CommandHandler("topgrup", top_grup))
     
 
     

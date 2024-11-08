@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from pymongo import MongoClient
 
-from start import start_game, new_chat_members, send_donation_info, send_help_info, send_game_rules  # Mengimpor fungsi start_game dari start.py
+from start import start_game, new_chat_members, send_donation_info, send_help_info, send_game_rules  # Mengimpor fungsi dari start.py
 from game_stats import player_stats, top_players
 
 # Inisialisasi Flask
@@ -40,6 +40,8 @@ def fetch_questions():
 
 # Mengambil data pertanyaan dan jawaban
 questions = fetch_questions()
+
+
 
 # Fungsi untuk menyimpan skor ke Google Sheets
 def add_score(scores):
@@ -81,12 +83,41 @@ def add_score(scores):
 
 
 
+# Fungsi untuk mengirim pesan peringatan jika bot bukan administrator
+def send_admin_alert(update: Update, context: CallbackContext) -> None:
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="<b>⚠️ Alert ⚠️</b>\n<i>Jadikan bot sebagai <b>admin</b> dan beri bot hak untuk <b>menghapus pesan.</b></i>",
+        reply_to_message_id=update.message.message_id,
+        parse_mode='HTML',
+        disable_web_page_preview=True
+    )
+
+# Fungsi untuk memeriksa apakah bot adalah administrator
+def is_bot_admin(update: Update, context: CallbackContext) -> bool:
+    bot_id = context.bot.id
+    adm = context.bot.get_chat_member(update.effective_chat.id, bot_id)
+    return adm.status == "administrator"
+
+
+
+
+
+
 # Fungsi untuk memulai permainan
 def play_game(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
+    
+    # Cek apakah bot adalah administrator
+    if not is_bot_admin(update, context):
+        send_admin_alert(update, context)
+        return
+    
+    if update.effective_chat.type == 'private':
+        return update.message.reply_html('<i>Bot hanya dapat dimainkan pada grup</i>')
 
     user_data = users_collection.find_one({"chat_id": chat_id})
-
+    
     # Cek apakah game sudah dimulai
     if user_data and user_data.get("current_question") is not None:
         current_question = user_data["current_question"]
@@ -214,6 +245,10 @@ def view_score(update: Update, context: CallbackContext) -> None:
 # Fungsi untuk menyerah pada pertanyaan
 def give_up(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
+    
+    if update.effective_chat.type == 'private':
+        return update.message.reply_html('<i>Bot hanya dapat dimainkan pada grup</i>')
+        
     user_data = users_collection.find_one({"chat_id": chat_id})
     
     
@@ -256,6 +291,10 @@ def give_up(update: Update, context: CallbackContext) -> None:
 # Fungsi untuk pertanyaan berikutnya
 def next_question(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
+    
+    if update.effective_chat.type == 'private':
+        return update.message.reply_html('<i>Bot hanya dapat dimainkan pada grup</i>')
+        
     user_data = users_collection.find_one({"chat_id": chat_id})
     
     # Cek apakah permainan sudah dimulai
@@ -313,9 +352,9 @@ def main():
     updater = Updater(TOKEN)
     dp = updater.dispatcher
 
-    dp.add_handler(CommandHandler("start", start_game))
+    dp.add_handler(CommandHandler("start", start_game, Filters.private))
     dp.add_handler(CommandHandler("play", play_game))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command & (Filters.group | Filters.supergroup), answer))
     dp.add_handler(CommandHandler("score", view_score))  # Tambahkan handler untuk melihat skor
     dp.add_handler(CommandHandler("nyerah", give_up))
     dp.add_handler(CommandHandler("next", next_question))  # Tambahkan handler untuk pertanyaan berikutnya

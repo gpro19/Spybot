@@ -95,7 +95,7 @@ def send_game_rules(update: Update, context: CallbackContext) -> None:
     )
 
     # Mengirim pesan aturan ke pengguna dengan opsi untuk melindungi konten
-    update.message.reply_html(rules_message, protect_content=True)
+    update.message.reply_html(rules_message)
 
 
 

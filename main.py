@@ -383,11 +383,6 @@ def main():
     
     load_questions_from_file()
     updater = Updater(TOKEN)
-
-    #updater.start_webhook(listen='0.0.0.0', port=8000, url_path='webhook')
-    #updater.bot.setWebhook('https://fair-berthe-grng-57915732.koyeb.app/webhook')  # Ganti dengan domain Anda
-
-    
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start_game, Filters.chat_type.private))
@@ -413,7 +408,7 @@ def main():
     flask_thread.start()
 
     # Jalankan updater
-    updater.idle()
+    #updater.stop_polling()
     
 if __name__ == '__main__':
     main()

@@ -1,7 +1,6 @@
 import requests
 from telegram import Update
 from telegram.ext import CallbackContext
-
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -17,6 +16,13 @@ def player_stats(update: Update, context: CallbackContext) -> None:
         response = requests.get(STATS_SCRIPT_URL)
         response.raise_for_status()  # Memastikan respons yang baik
         data = response.json()  # Mengambil data dalam format JSON
+
+        logger.info(f"Data received: {data}")  # Menampilkan data yang diterima
+
+        # Pastikan data yang diterima memiliki format yang benar
+        if not isinstance(data, list) or len(data) < 2 or not all(isinstance(row, list) and len(row) == 3 for row in data[1:]):
+            update.message.reply_text("Data tidak tersedia atau dalam format yang salah.")
+            return
 
         # Mengurutkan data berdasarkan skor
         data.sort(key=lambda x: x[2], reverse=True)
@@ -51,9 +57,15 @@ def player_stats(update: Update, context: CallbackContext) -> None:
             parse_mode='HTML'
         )
 
-    except Exception as e:
-        logger.error(f"Error fetching player stats: {e}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request error: {e}")
         update.message.reply_text("Terjadi kesalahan saat mengambil statistik pemain.")
+    except ValueError as e:
+        logger.error(f"JSON decoding error: {e}")
+        update.message.reply_text("Data yang diterima tidak valid.")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        update.message.reply_text("Terjadi kesalahan yang tidak terduga.")
 
 # Fungsi untuk menampilkan top player
 def top_players(update: Update, context: CallbackContext) -> None:
@@ -62,6 +74,13 @@ def top_players(update: Update, context: CallbackContext) -> None:
         response = requests.get(STATS_SCRIPT_URL)
         response.raise_for_status()  # Memastikan respons yang baik
         data = response.json()  # Mengambil data dalam format JSON
+
+        logger.info(f"Data received: {data}")  # Menampilkan data yang diterima
+
+        # Pastikan data yang diterima memiliki format yang benar
+        if not isinstance(data, list) or len(data) < 2 or not all(isinstance(row, list) and len(row) == 3 for row in data[1:]):
+            update.message.reply_text("Data tidak tersedia atau dalam format yang salah.")
+            return
 
         # Mengurutkan data berdasarkan skor
         data.sort(key=lambda x: x[2], reverse=True)
@@ -95,6 +114,9 @@ def top_players(update: Update, context: CallbackContext) -> None:
         # Mengirim pesan ke pengguna
         update.message.reply_text(pesan, parse_mode='HTML', disable_web_page_preview=True)
 
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching top players: {e}")
         update.message.reply_text("Terjadi kesalahan saat mengambil data pemain teratas.")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        update.message.reply_text("Terjadi kesalahan yang tidak terduga.")

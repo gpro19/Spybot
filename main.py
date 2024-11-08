@@ -124,9 +124,14 @@ def is_bot_admin(update: Update, context: CallbackContext) -> bool:
 
 # Fungsi untuk memulai permainan
 def play_game(update: Update, context: CallbackContext) -> None:
-    chat_id = update.message.chat.id
+    chat_id = update.effective_chat.id
     
-    
+     # ID grup yang diizinkan
+    allowed_group_id = -1001651683956
+
+    if update.effective_chat.id != allowed_group_id:
+        return update.message.reply_html('<i>Bot hanya dapat digunakan di support grup</i>')
+
     
     if update.effective_chat.type == 'private':
         return update.message.reply_html('<i>Bot hanya dapat dimainkan pada grup</i>')

@@ -178,7 +178,9 @@ def play_game(update: Update, context: CallbackContext) -> None:
 
 # Fungsi untuk memproses jawaban
 def answer(update: Update, context: CallbackContext) -> None:
-
+    
+    if update.message is None:
+        return
     
     chat_id = update.message.chat.id
     user_id = update.message.from_user.id

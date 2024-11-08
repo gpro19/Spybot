@@ -3,3 +3,4 @@ Flask
 requests
 pymongo
 gunicorn
+gevent

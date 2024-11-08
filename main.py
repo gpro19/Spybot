@@ -108,14 +108,16 @@ def is_bot_admin(update: Update, context: CallbackContext) -> bool:
 def play_game(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
     
-    # Cek apakah bot adalah administrator
-    if not is_bot_admin(update, context):
-        send_admin_alert(update, context)
-        return
+    
     
     if update.effective_chat.type == 'private':
         return update.message.reply_html('<i>Bot hanya dapat dimainkan pada grup</i>')
 
+    # Cek apakah bot adalah administrator
+    if not is_bot_admin(update, context):
+        send_admin_alert(update, context)
+        return
+        
     user_data = users_collection.find_one({"chat_id": chat_id})
     
     # Cek apakah game sudah dimulai

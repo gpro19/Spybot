@@ -19,8 +19,11 @@ def player_stats(update: Update, context: CallbackContext) -> None:
 
         logger.info(f"Data received: {data}")  # Menampilkan data yang diterima
 
-        # Pastikan data yang diterima memiliki format yang benar
-        if not isinstance(data, list) or len(data) < 2 or not all(isinstance(row, list) and len(row) == 3 for row in data[1:]):
+        # Cek apakah data adalah dict dan ambil list yang tepat
+        if isinstance(data, dict):
+            data = data.get('data', [])  # Misalnya, jika data Anda ada di kunci 'data'
+
+        if not isinstance(data, list) or len(data) < 2:
             update.message.reply_text("Data tidak tersedia atau dalam format yang salah.")
             return
 
@@ -58,14 +61,12 @@ def player_stats(update: Update, context: CallbackContext) -> None:
         )
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Request error: {e}")
+        logger.error(f"Error fetching player stats: {e}")
         update.message.reply_text("Terjadi kesalahan saat mengambil statistik pemain.")
-    except ValueError as e:
-        logger.error(f"JSON decoding error: {e}")
-        update.message.reply_text("Data yang diterima tidak valid.")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         update.message.reply_text("Terjadi kesalahan yang tidak terduga.")
+
 
 # Fungsi untuk menampilkan top player
 def top_players(update: Update, context: CallbackContext) -> None:

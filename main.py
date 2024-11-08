@@ -39,15 +39,10 @@ def fetch_questions():
 questions = fetch_questions()
 
 # Fungsi untuk menyimpan skor ke Google Sheets
-def add_score(chat_id):
-    user_data = users_collection.find_one({"chat_id": chat_id})
-
-    if not user_data or "score" not in user_data:
-        print("Tidak ada skor untuk chat_id ini.")
-        return  
-    
-    scores = user_data["score"]
+def add_score(scores):
+        
     logger.info(scores)
+    
     if not scores:
         logger.info("Skor kosong untuk chat_id ini.")
         return
@@ -128,6 +123,7 @@ def answer(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     user_name = update.message.from_user.first_name
     answer_text = update.message.text.lower().strip()
+    scores = user_data["score"]
     
     user_data = users_collection.find_one({"chat_id": chat_id})
 
@@ -180,16 +176,18 @@ def answer(update: Update, context: CallbackContext) -> None:
 
     if all(user_data["correct_answers_status"]):
         response_message += "\nSemua jawaban sudah terjawab. Ketik /play untuk pertanyaan berikutnya."        
-    
+        
+        update.message.reply_text(response_message)
+        
         # Simpan skor ke Google Sheets
-        add_score(chat_id)
+        add_score(scores)
         
         users_collection.delete_one({"chat_id": chat_id})  # Hapus data game setelah semua terjawab
         
     else:
         users_collection.update_one({"chat_id": chat_id}, {"$set": user_data})
+        update.message.reply_text(response_message)
 
-    update.message.reply_text(response_message)
 
 # Fungsi untuk melihat skor pemain
 def view_score(update: Update, context: CallbackContext) -> None:
@@ -213,7 +211,7 @@ def view_score(update: Update, context: CallbackContext) -> None:
 def give_up(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
     user_data = users_collection.find_one({"chat_id": chat_id})
-
+    scores = user_data["score"]
     # Cek apakah permainan sudah dimulai
     if user_data is None or user_data["current_question"] is None:
         update.message.reply_text("Game belum dimulai. Ketik /play untuk memulai permainan.")
@@ -241,8 +239,8 @@ def give_up(update: Update, context: CallbackContext) -> None:
         
         response_message += "\nKetik /play untuk pertanyaan lain."
         update.message.reply_text(response_message)
-
-        add_score(chat_id)
+       
+        add_score(scores)
         
         users_collection.delete_one({"chat_id": chat_id})  # Hapus data game setelah semua terjawab
         
@@ -253,14 +251,13 @@ def give_up(update: Update, context: CallbackContext) -> None:
 def next_question(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
     user_data = users_collection.find_one({"chat_id": chat_id})
-
+    scores = user_data["score"]
     # Cek apakah permainan sudah dimulai
     if user_data is None or user_data["current_question"] is None:
         update.message.reply_text("Game belum dimulai. Ketik /play untuk memulai permainan.")
         return
 
     # Hapus data pertanyaan sebelumnya
-    add_score(chat_id)
     #users_collection.delete_one({"chat_id": chat_id})
 
     
@@ -287,6 +284,7 @@ def next_question(update: Update, context: CallbackContext) -> None:
     # Kirim pertanyaan ke grup
     question_text = f"{question['question']}\n" + "\n".join([f"{i + 1}. _______" for i in range(len(question["answers"]))])
     update.message.reply_text(question_text)
+    add_score(scores)
 
 @app.route('/webhook', methods=['POST'])
 def webhook():

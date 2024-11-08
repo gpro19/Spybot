@@ -4,7 +4,7 @@ import logging
 import random
 import threading
 from flask import Flask, request
-from telegram import Update
+from telegram import Update, Chat
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from pymongo import MongoClient
 

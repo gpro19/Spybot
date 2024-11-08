@@ -1,0 +1,11 @@
+# Membuat virtual environment baru
+python -m venv venv
+
+# Mengaktifkan virtual environment
+# Di Windows
+venv\Scripts\activate
+# Di Mac/Linux
+source venv/bin/activate
+
+# Instal dependensi
+pip install -r requirements.txt

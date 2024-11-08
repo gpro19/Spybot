@@ -4,7 +4,7 @@ import logging
 import random
 import threading
 from flask import Flask, request
-from telegram import Update, Chat
+from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from pymongo import MongoClient
 
@@ -354,7 +354,7 @@ def main():
 
     dp.add_handler(CommandHandler("start", start_game, Filters.private))
     dp.add_handler(CommandHandler("play", play_game))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command & (Filters.chat_type(Chat.GROUP) | Filters.chat_type(Chat.SUPERGROUP)), answer))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command & Filters.group, answer))
     dp.add_handler(CommandHandler("score", view_score))  # Tambahkan handler untuk melihat skor
     dp.add_handler(CommandHandler("nyerah", give_up))
     dp.add_handler(CommandHandler("next", next_question))  # Tambahkan handler untuk pertanyaan berikutnya

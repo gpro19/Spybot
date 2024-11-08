@@ -5,7 +5,7 @@ import logging
 import random
 import threading
 from flask import Flask, request
-from telegram import Update, Chat
+from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from pymongo import MongoClient
 
@@ -137,9 +137,9 @@ def play_game(update: Update, context: CallbackContext) -> None:
         return update.message.reply_html('<i>Bot hanya dapat dimainkan pada grup</i>')
 
     # Cek apakah bot adalah administrator
-    if not is_bot_admin(update, context):
-        send_admin_alert(update, context)
-        return
+    #if not is_bot_admin(update, context):
+        #send_admin_alert(update, context)
+        #return
         
     user_data = users_collection.find_one({"chat_id": chat_id})
     
@@ -178,6 +178,8 @@ def play_game(update: Update, context: CallbackContext) -> None:
 
 # Fungsi untuk memproses jawaban
 def answer(update: Update, context: CallbackContext) -> None:
+
+    
     chat_id = update.message.chat.id
     user_id = update.message.from_user.id
     user_name = update.message.from_user.first_name
@@ -379,9 +381,9 @@ def main():
     updater = Updater(TOKEN)
     dp = updater.dispatcher
 
-    dp.add_handler(CommandHandler("start", start_game, Filters.private))
+    dp.add_handler(CommandHandler("start", start_game, Filters.chat_type.private))
     dp.add_handler(CommandHandler("play", play_game))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command & Filters.group, answer))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, answer))
     dp.add_handler(CommandHandler("score", view_score))  # Tambahkan handler untuk melihat skor
     dp.add_handler(CommandHandler("nyerah", give_up))
     dp.add_handler(CommandHandler("next", next_question))  # Tambahkan handler untuk pertanyaan berikutnya

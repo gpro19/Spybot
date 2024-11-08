@@ -123,20 +123,21 @@ def answer(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     user_name = update.message.from_user.first_name
     answer_text = update.message.text.lower().strip()
-    scores = user_data["score"]
+    
     
     user_data = users_collection.find_one({"chat_id": chat_id})
 
     # Cek apakah permainan sudah dimulai
     if user_data is None:
-        update.message.reply_text("Belum ada permainan yang dimulai. Ketik /play untuk memulai.")
+        #update.message.reply_text("Belum ada permainan yang dimulai. Ketik /play untuk memulai.")
         return
-
+    
+    scores = user_data["score"]
     current_question = user_data.get("current_question")
 
     # Cek apakah ada pertanyaan aktif
     if current_question is None:
-        update.message.reply_text("Tidak ada pertanyaan aktif.")
+        #update.message.reply_text("Tidak ada pertanyaan aktif.")
         return
 
     answers = current_question["answers"]
@@ -150,11 +151,11 @@ def answer(update: Update, context: CallbackContext) -> None:
             break
 
     if not correct_answer_found:
-        update.message.reply_text("Jawaban tidak valid. Coba lagi.")
+        #update.message.reply_text("Jawaban tidak valid. Coba lagi.")
         return
 
     if user_data["correct_answers_status"][correct_index]:
-        update.message.reply_text("Jawaban ini sudah dijawab dengan benar oleh pemain lain. Coba jawaban lain.")
+        #update.message.reply_text("Jawaban ini sudah dijawab dengan benar oleh pemain lain. Coba jawaban lain.")
         return
 
     # Tandai jawaban ini sebagai benar
@@ -211,12 +212,14 @@ def view_score(update: Update, context: CallbackContext) -> None:
 def give_up(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
     user_data = users_collection.find_one({"chat_id": chat_id})
-    scores = user_data["score"]
+    
+    
     # Cek apakah permainan sudah dimulai
     if user_data is None or user_data["current_question"] is None:
         update.message.reply_text("Game belum dimulai. Ketik /play untuk memulai permainan.")
         return
-
+    
+    scores = user_data["score"]
     current_question = user_data["current_question"]
 
     # Mencari jawaban yang belum dijawab
@@ -251,12 +254,14 @@ def give_up(update: Update, context: CallbackContext) -> None:
 def next_question(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat.id
     user_data = users_collection.find_one({"chat_id": chat_id})
-    scores = user_data["score"]
+    
     # Cek apakah permainan sudah dimulai
     if user_data is None or user_data["current_question"] is None:
         update.message.reply_text("Game belum dimulai. Ketik /play untuk memulai permainan.")
         return
-
+     
+    scores = user_data["score"]
+    
     # Hapus data pertanyaan sebelumnya
     #users_collection.delete_one({"chat_id": chat_id})
 
@@ -276,6 +281,7 @@ def next_question(update: Update, context: CallbackContext) -> None:
         {"chat_id": chat_id},
         {"$set": {
             "current_question": question,
+            "score": {},
             "correct_answers_status": [False] * len(question["answers"]),  # Inisialisasi status jawaban benar
             "answers_record": ["_______"] * len(question["answers"]),  # Inisialisasi penyimpanan jawaban yang sudah diberikan
         }}

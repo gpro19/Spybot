@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # URL Google Apps Script untuk mengambil pertanyaan
-TOKEN = '6921935430:AAG2kC2tp6e86CKL0Q_n0beqYMUxNY-nIRk'  # Ganti dengan token bot Telegram Anda
+TOKEN = '5980732812:AAFXI4PosWOGjqS55qp54HiQwOKHcBeY9tA'  # Ganti dengan token bot Telegram Anda
 GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSMAruuH0lPIzQNE2L0JyCuSCVHPb85Ua1RHdEq6CCOu7ZVrlgsBFe2ZR8rFBmt4H/exec'  # Ganti dengan URL Google Apps Script Anda
 
 
@@ -65,10 +65,10 @@ def fetch_questions():
 # Fungsi untuk menyimpan skor ke Google Sheets
 def add_score(scores):
         
-    logger.info(scores)
+    #logger.info(scores)
     
     if not scores:
-        logger.info("Skor kosong untuk chat_id ini.")
+        #logger.info("Skor kosong untuk chat_id ini.")
         return
         
     score_message = [
@@ -81,7 +81,7 @@ def add_score(scores):
     ]
 
     if not score_message:
-        logger.info("Tidak ada skor untuk dikirim.")
+        #logger.info("Tidak ada skor untuk dikirim.")
         return
 
     # Mengirim data ke Google Apps Script
@@ -93,9 +93,9 @@ def add_score(scores):
         )
 
         if response.status_code == 200:
-            print("Data berhasil dikirim!")
+            logger.info("Data berhasil dikirim!")
         else:
-            print("Terjadi kesalahan saat mengirim data.")
+            logger.info("Terjadi kesalahan saat mengirim data.")
 
     except Exception as e:
         print(f"Error: {e}")

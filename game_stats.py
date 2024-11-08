@@ -3,13 +3,13 @@ from telegram import Update
 from telegram.ext import CallbackContext
 
 # URL Google Apps Script untuk mengambil data pemain
-GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_URL/exec'  # Ganti dengan URL Anda
+STATS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDqdrHOTxS9cj8dTEHI0alLQHxQKZ4McDPrLBjh_IN3S4b23DrLsEm7OBx7DnykMgg/exec'  # Ganti dengan URL Anda
 
 # Fungsi untuk menampilkan statistik pemain
 def player_stats(update: Update, context: CallbackContext) -> None:
     try:
         # Mengambil data dari Google Sheets
-        response = requests.get(GOOGLE_SCRIPT_URL)
+        response = requests.get(STATS_SCRIPT_URL)
         response.raise_for_status()  # Memastikan respons yang baik
         data = response.json()  # Mengambil data dalam format JSON
 
@@ -54,7 +54,7 @@ def player_stats(update: Update, context: CallbackContext) -> None:
 def top_players(update: Update, context: CallbackContext) -> None:
     try:
         # Mengambil data dari Google Sheets
-        response = requests.get(GOOGLE_SCRIPT_URL)
+        response = requests.get(STATS_SCRIPT_URL)
         response.raise_for_status()  # Memastikan respons yang baik
         data = response.json()  # Mengambil data dalam format JSON
 

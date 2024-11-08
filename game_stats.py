@@ -77,8 +77,12 @@ def top_players(update: Update, context: CallbackContext) -> None:
 
         logger.info(f"Data received: {data}")  # Menampilkan data yang diterima
 
-        # Pastikan data yang diterima memiliki format yang benar
-        if not isinstance(data, list) or len(data) < 2 or not all(isinstance(row, list) and len(row) == 3 for row in data[1:]):
+        # Pastikan data dalam format yang benar
+        if isinstance(data, dict):
+            # Misalnya, jika data dalam format {'players': [...]}
+            data = data.get('players', [])
+
+        if not isinstance(data, list) or len(data) < 1:
             update.message.reply_text("Data tidak tersedia atau dalam format yang salah.")
             return
 

@@ -11,52 +11,25 @@ STATS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDqdrHOTxS9cj8dTEHI
 
 # Fungsi untuk menampilkan statistik pemain
 def player_stats(update: Update, context: CallbackContext) -> None:
+    user_id = update.message.from_user.id  # Ambil ID pengguna dari pesan
     try:
         # Mengambil data dari Google Sheets
-        response = requests.get(STATS_SCRIPT_URL)
+        response = requests.get(f"{STATS_SCRIPT_URL}?action=stats&userId={user_id}")
         response.raise_for_status()  # Memastikan respons yang baik
         data = response.json()  # Mengambil data dalam format JSON
 
         logger.info(f"Data received: {data}")  # Menampilkan data yang diterima
 
-        # Cek apakah data adalah dict dan ambil list yang tepat
-        if isinstance(data, dict):
-            data = data.get('data', [])  # Misalnya, jika data Anda ada di kunci 'data'
-
-        if not isinstance(data, list) or len(data) < 2:
-            update.message.reply_text("Data tidak tersedia atau dalam format yang salah.")
-            return
-
-        # Mengurutkan data berdasarkan skor
-        data.sort(key=lambda x: x[2], reverse=True)
-
-        # Ambil ID pengguna dari pesan
-        user_id = update.message.from_user.id
-        
-        # Mencari indeks pemain berdasarkan ID
-        index = next((i for i, player in enumerate(data) if player[0] == user_id), -1)
-
-        # Jika pemain tidak ditemukan
-        if index == -1:
-            update.message.reply_text(
-                f"<b>Your Game Stats</b>\n\n"
-                f"🆔 <b>ID:</b> <code>{user_id}</code>\n"
-                f"🌟 <b>Point:</b> 0\n"
-                f"🌏 <b>Global Rank:</b> -", 
-                parse_mode='HTML'
-            )
+        if not data:
+            update.message.reply_text("Data tidak tersedia untuk pemain ini.")
             return
         
-        # Jika pemain ditemukan
-        player_score = data[index][2]  # Poin pemain
-        global_rank = index + 1  # Peringkat global
-
         # Mengirim pesan dengan statistik pemain
         update.message.reply_text(
             f"<b>Your Game Stats</b>\n\n"
-            f"🆔 <b>ID:</b> <code>{user_id}</code>\n"
-            f"🌟 <b>Point:</b> {player_score}\n"
-            f"🌏 <b>Global Rank:</b> {global_rank}",
+            f"🆔 <b>ID:</b> <code>{data['id']}</code>\n"
+            f"🌟 <b>Point:</b> {data['score']}\n"
+            f"🌏 <b>Global Rank:</b> {data.get('rank', 'N/A')}",  # Sesuaikan jika ada peringkat
             parse_mode='HTML'
         )
 
@@ -67,53 +40,39 @@ def player_stats(update: Update, context: CallbackContext) -> None:
         logger.error(f"Unexpected error: {e}")
         update.message.reply_text("Terjadi kesalahan yang tidak terduga.")
 
-
 # Fungsi untuk menampilkan top player
 def top_players(update: Update, context: CallbackContext) -> None:
     try:
         # Mengambil data dari Google Sheets
-        response = requests.get(STATS_SCRIPT_URL)
+        response = requests.get(f"{STATS_SCRIPT_URL}?action=top&limit=20")
         response.raise_for_status()  # Memastikan respons yang baik
         data = response.json()  # Mengambil data dalam format JSON
 
         logger.info(f"Data received: {data}")  # Menampilkan data yang diterima
 
-        # Cek apakah data adalah dict dan ambil list yang tepat
-        if isinstance(data, dict):
-            data = data.get('data', [])  # Misalnya, jika data Anda ada di kunci 'data'
-
-        if not isinstance(data, list) or len(data) < 2:
-            update.message.reply_text("Data tidak tersedia atau dalam format yang salah.")
+        if not data:
+            update.message.reply_text("Data pemain teratas tidak tersedia.")
             return
 
-        # Mengurutkan data berdasarkan skor
-        data.sort(key=lambda x: x[2], reverse=True)
-
-        pesan = "<b>Top Player Global</b>\n"
-        rank_limit = 20  # Batasi jumlah pemain yang ditampilkan
-
+        pesan = "<b>🏆 Top Player Global</b>\n\n"  # Judul leaderboard
         for i, player in enumerate(data):
-            if i >= rank_limit:  # Hentikan setelah 20 pemain
-                break
-            
-            mdl = ''
-            top = ''
-            if i == 0:
-                mdl += '🥇'
-                top += '🏆'
-            elif i == 1:
-                mdl += '🥈'
-            elif i == 2:
-                mdl += '🥉'
-            else:
-                mdl += '▫'
-
-            user_id = player[0]  # ID pengguna
-            user_name = player[1]  # Nama pengguna
-            user_score = player[2]  # Skor pengguna
+            user_id = player['id']  # ID pengguna
+            user_name = player['name']  # Nama pengguna
+            user_score = player['score']  # Skor pengguna
             urlku = f'tg://user?id={user_id}'  # URL untuk menghubungkan ke pengguna di Telegram
             
-            pesan += f'\n{mdl}<b> {i + 1}.</b> <a href="{urlku}">{user_name}</a> - <b>({user_score})</b> {top}'
+            # Menambahkan gaya berdasarkan peringkat
+            medal = ''
+            if i == 0:
+                medal = '🥇'  # Emas untuk peringkat 1
+            elif i == 1:
+                medal = '🥈'  # Perak untuk peringkat 2
+            elif i == 2:
+                medal = '🥉'  # Perunggu untuk peringkat 3
+            else:
+                medal = '▫️'  # Simbol untuk peringkat lainnya
+
+            pesan += f'<b>{medal} {i + 1}.</b> <a href="{urlku}">{user_name}</a> - <b>{user_score}</b> Points\n'  # Format pesan
 
         # Mengirim pesan ke pengguna
         update.message.reply_text(pesan, parse_mode='HTML', disable_web_page_preview=True)

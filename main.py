@@ -219,11 +219,12 @@ def answer(update: Update, context: CallbackContext) -> None:
     # Update skor untuk pemain yang menjawab
     if str(user_id) not in user_data["score"]:
         user_data["score"][str(user_id)] = {"nama": user_name, "poin": 0}
-    
-    user_data["score"][str(user_id)]["poin"] += 1  # Tambahkan poin
+
+    pts = random.randint(1, 10)
+    user_data["score"][str(user_id)]["poin"] += pts  # Tambahkan poin
     
     # Simpan jawaban ke dalam answers_record pada posisi yang sesuai
-    user_data["answers_record"][correct_index] = f"{answers[correct_index]} (+1) [{user_name}]"
+    user_data["answers_record"][correct_index] = f"{answers[correct_index]} (+{pts}) [{user_name}]"
 
     # Update pesan dengan jawaban yang benar
     response_message = f"{current_question['question']}\n"
